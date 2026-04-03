@@ -39,6 +39,7 @@ export default function DmaDashboardPage() {
   const [loginTime] = useState(() => new Date());
   const [session, setSession] = useState<{ user?: { id: string; email?: string } } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dmaLocation, setDmaLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const [filters, setFilters] = useState({
     situations: [] as string[],
@@ -58,6 +59,24 @@ export default function DmaDashboardPage() {
   const [selectedReport, setSelectedReport] = useState<VictimReport | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createModalReportId, setCreateModalReportId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setDmaLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        () => {
+          setDmaLocation({ lat: 23.79, lng: 86.43 });
+        }
+      );
+    } else {
+      setDmaLocation({ lat: 23.79, lng: 86.43 });
+    }
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -169,6 +188,7 @@ export default function DmaDashboardPage() {
             layers={layers}
             onReportSelect={handleReportSelect}
             selectedReportId={selectedReport?.id || null}
+            dmaLocation={dmaLocation}
           />
         </main>
 

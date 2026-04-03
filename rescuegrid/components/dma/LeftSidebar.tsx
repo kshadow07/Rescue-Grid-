@@ -192,22 +192,26 @@ export default function LeftSidebar({
             ].map((layer) => (
               <label
                 key={layer.key}
-                className="flex items-center gap-2 cursor-pointer group"
+                className="flex items-center gap-3 cursor-pointer group"
               >
-                <span
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={layers[layer.key]}
+                  onClick={() => onLayerToggle(layer.key, !layers[layer.key])}
                   className={`
-                    w-8 h-4 rounded-full transition-all relative
-                    ${layers[layer.key] ? "bg-orange" : "bg-surface-3"}
+                    w-10 h-5 rounded-full transition-all relative
+                    ${layers[layer.key] ? "bg-orange" : "bg-surface-4"}
                   `}
                 >
                   <span
                     className={`
-                      absolute top-0.5 w-3 h-3 rounded-full bg-ink transition-all
-                      ${layers[layer.key] ? "left-4" : "left-0.5"}
+                      absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all
+                      ${layers[layer.key] ? "left-5" : "left-0.5"}
                     `}
                   />
-                </span>
-                <span className="font-display text-[12px] text-dim group-hover:text-ink uppercase tracking-wide">
+                </button>
+                <span className={`font-display text-[12px] uppercase tracking-wide transition-colors ${layers[layer.key] ? "text-ink" : "text-dim group-hover:text-muted"}`}>
                   {layer.label}
                 </span>
               </label>

@@ -10,7 +10,7 @@
 
 ### 0.1 Next.js App Setup ✅
 - [x] Run `bunx create-next-app@latest` in `rescuegrid/` subdirectory
-- [x] Install dependencies: @supabase/supabase-js, @supabase/ssr, mapbox-gl, @mapbox/mapbox-gl-geocoder, @mapbox/search-js-react, web-push
+- [x] Install dependencies: @supabase/supabase-js, @supabase/ssr, mapbox-gl, @mapbox/mapbox-gl-geocoder, @mapbox/search-js-react, web-push, react-map-gl
 - [x] Install dev dependencies: @types/mapbox-gl, @types/web-push
 - [x] Configure `globals.css` with full token set from UI PRD §13 via Tailwind v4 @theme
   - Colors: `void`, `surface-1–4`, `orange`, `alert`, `ops`, `intel`, `caution`, `ink`, `muted`, `dim`
@@ -175,6 +175,9 @@
 - [x] Volunteer lettered avatar markers with status dot (green/orange/gray)
 - [x] Layer toggles: Need Pins, Volunteer Locations, Relief Camps, Nearby Hospitals
 - [x] District filter integration
+- [x] **REFACTORED**: Switched to `react-map-gl` with React component markers (better positioning, no CSS transform conflicts)
+- [x] **FIXED**: Popup hover flicker - popups now stay visible when transitioning from marker to popup with delayed hide (150ms)
+- [x] **FIXED**: Removed default popup box background - popups now display cleanly without duplicate styling
 
 ### 4.4 Left Sidebar ✅
 - [x] Situation type filter chips (Food/Water/Medical/Rescue/Shelter/Missing)
@@ -264,7 +267,7 @@
 - `components/dma/Topbar.tsx` — DMA topbar with logo, nav, counters, session timer
 - `components/dma/LeftSidebar.tsx` — Filters + resource summary
 - `components/dma/RightSidebar.tsx` — Mission control + responders
-- `components/dma/MapboxMap.tsx` — Full Mapbox GL JS map component
+- `components/dma/MapboxMap.tsx` — Full Mapbox GL JS map component (refactored to use `react-map-gl` with React markers)
 - `app/(dma)/dma/dashboard/page.tsx` — Main DMA dashboard page
 - `app/api/dma/counters/route.ts` — Live counter API
 - `app/api/dma/assignment/counts/route.ts` — Assignment status counts

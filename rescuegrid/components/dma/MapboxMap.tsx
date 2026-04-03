@@ -1,24 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import Map, { Marker, Popup, NavigationControl, ScaleControl, Source, Layer } from "react-map-gl/mapbox";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { MapPin } from "lucide-react";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
-const SITUATION_COLORS: Record<string, string> = {
-  food: "#2ECC71",
-  water: "#3B8BFF",
-  medical: "#F5A623",
-  rescue: "#FF3B3B",
-  shelter: "#9B59B6",
-  missing: "#4A505C",
+const SITUATION_STYLES: Record<string, { color: string; label: string }> = {
+  rescue: { color: "#FF3B3B", label: "RESCUE" },
+  food: { color: "#2ECC71", label: "FOOD" },
+  water: { color: "#3B8BFF", label: "WATER" },
+  medical: { color: "#F5A623", label: "MEDICAL" },
+  shelter: { color: "#9B59B6", label: "SHELTER" },
+  missing: { color: "#6B7280", label: "MISSING" },
 };
 
-const URGENCY_SIZES: Record<string, number> = {
-  critical: 20,
-  urgent: 16,
-  moderate: 12,
+const STATUS_COLORS: Record<string, string> = {
+  open: "#2ECC71",
+  active: "#FF6B2B",
+  assigned: "#3B8BFF",
+  resolved: "#6B7280",
+  duplicate: "#F5A623",
 };
 
 interface VictimReport {
@@ -38,11 +42,22 @@ interface VictimReport {
 interface Volunteer {
   id: string;
   name: string;
+  mobile_no?: string;
   latitude: number;
   longitude: number;
   status: string;
   type: string;
-  last_seen: string | null;
+  skills?: string;
+  equipment?: string;
+}
+
+interface POIPlace {
+  id: string;
+  name: string;
+  category: string;
+  latitude: number;
+  longitude: number;
+  address?: string;
 }
 
 interface MapboxMapProps {
@@ -54,307 +69,727 @@ interface MapboxMapProps {
   layers: Record<string, boolean>;
   onReportSelect: (report: VictimReport | null) => void;
   selectedReportId: string | null;
+  dmaLocation: { lat: number; lng: number } | null;
 }
 
-export default function MapboxMap({
-  filters,
-  layers,
-  onReportSelect,
-  selectedReportId,
-}: MapboxMapProps) {
-  const mapContainerRef = useRef<HTMLDivElement>(null);
+function getVolunteerStatusColor(status: string): string {
+  if (status === "on-mission") return "#FF6B2B";
+  if (status === "standby") return "#F5A623";
+  return "#2ECC71";
+}
+
+function VictimMarker({ 
+  report, 
+  isSelected, 
+  onClick, 
+  onMouseEnter, 
+  onMouseLeave 
+}: { 
+  report: VictimReport; 
+  isSelected: boolean; 
+  onClick: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) {
+  const style = SITUATION_STYLES[report.situation] || SITUATION_STYLES.rescue;
+  const isCritical = report.status === "open" && report.urgency === "critical";
+
+  return (
+    <div
+      className="relative cursor-pointer group"
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {isCritical && (
+        <div 
+          className="absolute inset-0 rounded-full animate-ping opacity-30"
+          style={{ backgroundColor: style.color }}
+        />
+      )}
+      <div 
+        className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${isSelected ? "scale-125 z-50" : ""}`}
+        style={{ backgroundColor: style.color, boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}
+      >
+        <MapPin className="w-5 h-5 text-white" />
+        <div 
+          className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px]"
+          style={{ borderTopColor: style.color }}
+        />
+      </div>
+      {isSelected && (
+        <div className="absolute -inset-1 border-2 border-white rounded-full" />
+      )}
+    </div>
+  );
+}
+
+function VolunteerMarker({ 
+  volunteer, 
+  onClick, 
+  onMouseEnter, 
+  onMouseLeave 
+}: { 
+  volunteer: Volunteer; 
+  onClick: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) {
+  const statusColor = getVolunteerStatusColor(volunteer.status);
+
+  return (
+    <div
+      className="relative cursor-pointer group"
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div 
+        className="relative w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
+        style={{ backgroundColor: "#1A1E25", border: `3px solid ${statusColor}`, boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}
+      >
+        <div 
+          className="absolute inset-0 rounded-full opacity-30"
+          style={{ backgroundColor: statusColor }}
+        />
+        <span className="relative text-white font-bold text-sm">
+          {volunteer.name.charAt(0)}
+        </span>
+        <div 
+          className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: statusColor, border: "2px solid #0D0F12" }}
+        >
+          <MapPin className="w-2.5 h-2.5 text-white" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function POIMarker({ 
+  poi, 
+  onClick, 
+  onMouseEnter, 
+  onMouseLeave 
+}: { 
+  poi: POIPlace; 
+  onClick: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) {
+  const isHospital = poi.category === "hospital";
+  const color = isHospital ? "#3B8BFF" : "#2ECC71";
+
+  return (
+    <div
+      className="relative cursor-pointer group"
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div 
+        className="relative w-8 h-10 transition-transform group-hover:scale-110"
+        style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.4))" }}
+      >
+        <svg viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+          <path 
+            d="M16 2C8.268 2 2 8.268 2 16C2 24 16 38 16 38C16 38 30 24 30 16C30 8.268 23.732 2 16 2Z" 
+            fill={color} 
+            stroke="white" 
+            strokeWidth="2"
+          />
+          {isHospital ? (
+            <>
+              <rect x="13" y="10" width="6" height="12" fill="white" rx="1"/>
+              <rect x="10" y="13" width="12" height="6" fill="white" rx="1"/>
+            </>
+          ) : (
+            <>
+              <path d="M16 12L16 24M12 16L20 16" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+              <rect x="10" y="26" width="12" height="4" fill="white" rx="1"/>
+            </>
+          )}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+export default function MapboxMap({ filters, layers, onReportSelect, selectedReportId, dmaLocation }: MapboxMapProps) {
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
-  const volunteerMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
-  const [mapStyle, setMapStyle] = useState<"dark" | "satellite">("dark");
-  const [mapLoaded, setMapLoaded] = useState(false);
+  
   const victimReportsRef = useRef<VictimReport[]>([]);
   const volunteersRef = useRef<Volunteer[]>([]);
+  
+  const routeGeometryRef = useRef<GeoJSON.LineString | null>(null);
+  const dataFetchedRef = useRef(false);
+  const fitBoundsToDataRef = useRef<(() => void) | null>(null);
+  
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapStyle, setMapStyleState] = useState<"dark" | "satellite">("dark");
+  const [selectionMode, setSelectionMode] = useState<"normal" | "destination">("normal");
+  const [originReport, setOriginReport] = useState<VictimReport | null>(null);
+  const [destinationVolunteer, setDestinationVolunteer] = useState<Volunteer | null>(null);
+  const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
+  const [poiData, setPoiData] = useState<{ hospitals: POIPlace[]; reliefCamps: POIPlace[] }>({ hospitals: [], reliefCamps: [] });
+  
+  const [hoveredReport, setHoveredReport] = useState<VictimReport | null>(null);
+  const [hoveredVolunteer, setHoveredVolunteer] = useState<Volunteer | null>(null);
+  const [hoveredPOI, setHoveredPOI] = useState<POIPlace | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ lng: number; lat: number } | null>(null);
 
-  const getVolunteerStatusColor = (status: string, lastSeen: string | null): string => {
-    if (status === "on-mission") return "#FF6B2B";
-    const diff = lastSeen ? Date.now() - new Date(lastSeen).getTime() : 0;
-    const mins = diff / 60000;
-    if (mins < 2) return "#2ECC71";
-    return "#4A505C";
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const filtersRef = useRef(filters);
+  const layersRef = useRef(layers);
+  const selectionModeRef = useRef(selectionMode);
+  const originReportRef = useRef(originReport);
+  
+  filtersRef.current = filters;
+  layersRef.current = layers;
+  selectionModeRef.current = selectionMode;
+  originReportRef.current = originReport;
+
+  const getTimeAgo = (date: Date): string => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return "just now";
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
   };
 
-  const createVictimPopup = (report: VictimReport): mapboxgl.Popup => {
-    return new mapboxgl.Popup({ offset: 15, className: "rescue-grid-popup" })
-      .setHTML(`
-        <div style="background:#13161B;padding:12px;font-family:'Barlow',sans-serif;min-width:200px;border-left:3px solid ${SITUATION_COLORS[report.situation] || '#FF6B2B'}">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#4A505C;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">
-            ${report.situation?.toUpperCase()} · ${report.urgency?.toUpperCase()}
+  const getVolunteerStatusLabel = (status: string): string => {
+    if (status === "on-mission") return "ON MISSION";
+    if (status === "standby") return "STANDBY";
+    if (status === "active") return "READY";
+    return "OFFLINE";
+  };
+
+  const createReportPopupContent = (report: VictimReport, isOrigin = false) => {
+    const style = SITUATION_STYLES[report.situation] || SITUATION_STYLES.rescue;
+    const urgencyColor = report.urgency === "critical" ? "#FF3B3B" : report.urgency === "urgent" ? "#FF6B2B" : "#8A8F99";
+    const statusColor = STATUS_COLORS[report.status] || "#6B7280";
+
+    return (
+      <div style={{ background: "#13161B", minWidth: 260, borderRadius: 4, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
+        {isOrigin && (
+          <div style={{ background: "#FF6B2B", padding: "6px 12px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#000", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            📍 Origin Selected
           </div>
-          <div style="font-family:'Barlow',sans-serif;font-size:13px;color:#F0EDE8;margin-bottom:4px">
-            📍 ${report.city || "Unknown"}, ${report.district || ""}
+        )}
+        <div style={{ borderLeft: `3px solid ${style.color}`, padding: "12px 14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: style.color, textTransform: "uppercase", letterSpacing: "0.1em" }}>{style.label}</span>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: urgencyColor, background: `${urgencyColor}20`, padding: "3px 6px", borderRadius: 2, textTransform: "uppercase" }}>{report.urgency}</span>
           </div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#4A505C;margin-bottom:8px">
-            ${report.phone_no} · ${new Date(report.created_at).toLocaleTimeString()}
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 600, color: "#F0EDE8", marginBottom: 4 }}>
+            📍 {report.city || "Unknown"}{report.district ? `, ${report.district.trim()}` : ""}
           </div>
-          ${report.custom_message ? `<div style="font-family:'Barlow',sans-serif;font-size:12px;color:#8A8F99;font-style:italic;margin-bottom:8px">"${report.custom_message}"</div>` : ""}
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em">
-            STATUS: ${report.status?.toUpperCase()}
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7280", marginBottom: report.custom_message ? 8 : 0 }}>
+            {report.phone_no} · {getTimeAgo(new Date(report.created_at))}
+          </div>
+          {report.custom_message && (
+            <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: 12, color: "#9CA3AF", fontStyle: "italic", lineHeight: 1.4, padding: 8, background: "rgba(0,0,0,0.3)", borderRadius: 3, marginBottom: 8 }}>
+              "{report.custom_message.substring(0, 80)}{report.custom_message.length > 80 ? "..." : ""}"
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: statusColor }}>● {report.status?.toUpperCase() || "OPEN"}</span>
+            {isOrigin && (
+              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 10, color: "#FF6B2B", textTransform: "uppercase" }}>Click responder to measure →</span>
+            )}
           </div>
         </div>
-      `);
+      </div>
+    );
   };
 
-  const updateMarkers = useCallback(() => {
-    if (!mapRef.current || !mapLoaded) return;
+  const createVolunteerPopupContent = (vol: Volunteer, isDestination = false, distanceInfo?: { distance: string; duration: string }) => {
+    const statusColor = getVolunteerStatusColor(vol.status);
+    const statusLabel = getVolunteerStatusLabel(vol.status);
+    const skills = vol.skills ? vol.skills.split(",").map((s: string) => s.trim()) : [];
+    const equipment = vol.equipment ? vol.equipment.split(",").map((s: string) => s.trim()) : [];
 
-    const visibleReports = victimReportsRef.current.filter((r) => {
-      if (filters.situations.length > 0 && !filters.situations.includes(r.situation)) return false;
-      if (filters.urgencies.length > 0 && !filters.urgencies.includes(r.urgency)) return false;
-      if (filters.district && r.district !== filters.district) return false;
-      return true;
-    });
+    return (
+      <div style={{ background: "#13161B", minWidth: 240, borderRadius: 4, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
+        {isDestination && (
+          <div style={{ background: "#2ECC71", padding: "6px 12px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#000", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            ✓ Destination Set
+          </div>
+        )}
+        <div style={{ padding: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <div style={{ width: 44, height: 44, background: "#1A1E25", border: `2px solid ${statusColor}`, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18, color: "#F0EDE8" }}>
+              {vol.name.charAt(0)}
+            </div>
+            <div>
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 600, color: "#F0EDE8" }}>{vol.name}</div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7280", textTransform: "uppercase" }}>{vol.type}</div>
+            </div>
+          </div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: statusColor, textTransform: "uppercase", background: `${statusColor}15`, padding: "5px 10px", borderRadius: 3, display: "inline-block", marginBottom: 12 }}>
+            {statusLabel}
+          </div>
+          {skills.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Skills</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {skills.map((skill: string, i: number) => (
+                  <span key={i} style={{ fontFamily: "'Barlow', sans-serif", fontSize: 11, color: "#F0EDE8", background: "rgba(255,107,43,0.1)", border: "1px solid rgba(255,107,43,0.2)", padding: "3px 8px", borderRadius: 2 }}>{skill}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {equipment.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Equipment</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {equipment.map((eq: string, i: number) => (
+                  <span key={i} style={{ fontFamily: "'Barlow', sans-serif", fontSize: 11, color: "#F0EDE8", background: "rgba(59,139,255,0.1)", border: "1px solid rgba(59,139,255,0.2)", padding: "3px 8px", borderRadius: 2 }}>{eq}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {distanceInfo && (
+            <div style={{ background: "linear-gradient(135deg,rgba(46,204,113,0.15),rgba(46,204,113,0.05))", border: "1px solid rgba(46,204,113,0.3)", borderRadius: 4, padding: 12, marginTop: 10 }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#2ECC71", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>Route Info</div>
+              <div style={{ display: "flex", gap: 16 }}>
+                <div>
+                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 700, color: "#2ECC71" }}>{distanceInfo.distance}</div>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#6B7280", textTransform: "uppercase" }}>Distance</div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 700, color: "#F0EDE8" }}>{distanceInfo.duration}</div>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#6B7280", textTransform: "uppercase" }}>Est. Time</div>
+                </div>
+              </div>
+            </div>
+          )}
+          {vol.mobile_no && (
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7280", marginTop: 8 }}>📞 {vol.mobile_no}</div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
-    const visibleIds = new Set(visibleReports.map((r) => r.id));
+  const createPoiPopupContent = (poi: POIPlace) => {
+    return (
+      <div style={{ background: "#13161B", minWidth: 200, borderRadius: 4, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.6)", borderLeft: `3px solid ${poi.category === 'hospital' ? '#3B8BFF' : '#2ECC71'}` }}>
+        <div style={{ padding: "12px 14px" }}>
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 14, fontWeight: 600, color: "#F0EDE8", marginBottom: 4 }}>{poi.name}</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#6B7280", textTransform: "uppercase", marginBottom: 4 }}>{poi.category}</div>
+          {poi.address && <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: 11, color: "#9CA3AF" }}>{poi.address}</div>}
+        </div>
+      </div>
+    );
+  };
 
-    markersRef.current.forEach((marker, id) => {
-      if (!visibleIds.has(id)) {
-        marker.remove();
-        markersRef.current.delete(id);
-      }
-    });
-
-    visibleReports.forEach((report) => {
-      if (!report.latitude || !report.longitude) return;
-
-      let marker = markersRef.current.get(report.id);
-
-      if (!marker) {
-        const el = document.createElement("div");
-        el.className = "victim-marker";
-        el.style.cssText = `
-          width: ${URGENCY_SIZES[report.urgency] || 14}px;
-          height: ${URGENCY_SIZES[report.urgency] || 14}px;
-          background: ${SITUATION_COLORS[report.situation] || "#FF6B2B"};
-          border: 2px solid ${report.status === "resolved" ? "rgba(255,255,255,0.3)" : "#fff"};
-          border-radius: 50%;
-          cursor: pointer;
-          ${report.status === "open" && report.urgency === "critical" ? "animation: pulse 1.5s infinite;" : ""}
-          opacity: ${report.status === "resolved" ? 0.4 : 1};
-          transition: transform 0.15s;
-        `;
-
-        el.addEventListener("mouseenter", () => {
-          el.style.transform = "scale(1.3)";
-        });
-        el.addEventListener("mouseleave", () => {
-          el.style.transform = "scale(1)";
-        });
-
-        marker = new mapboxgl.Marker({ element: el })
-          .setLngLat([report.longitude, report.latitude])
-          .setPopup(createVictimPopup(report))
-          .addTo(mapRef.current!);
-
-        el.addEventListener("click", () => {
-          onReportSelect(report);
-        });
-
-        markersRef.current.set(report.id, marker);
-      } else {
-        marker.setPopup(createVictimPopup(report));
-        if (selectedReportId === report.id) {
-          marker.togglePopup();
+  const fetchPOIData = useCallback(async (lat: number, lng: number) => {
+    try {
+      const categories = ["hospital", "relief_camp"];
+      const results: POIPlace[] = [];
+      
+      for (const category of categories) {
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${category}.json?bbox=${lng - 1},${lat - 1},${lng + 1},${lat + 1}&limit=10&access_token=${MAPBOX_TOKEN}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.features) {
+          data.features.forEach((feature: any, index: number) => {
+            results.push({
+              id: `${category}-${index}`,
+              name: feature.text || feature.place_name,
+              category: category === "hospital" ? "hospital" : "reliefCamp",
+              latitude: feature.center[1],
+              longitude: feature.center[0],
+              address: feature.properties.address || feature.place_name,
+            });
+          });
         }
       }
-    });
+      
+      setPoiData({
+        hospitals: results.filter(p => p.category === "hospital"),
+        reliefCamps: results.filter(p => p.category === "reliefCamp"),
+      });
+    } catch (error) {
+      console.error("POI fetch error:", error);
+    }
+  }, []);
 
-    volunteerMarkersRef.current.forEach((marker, id) => {
-      if (!layers.volunteers) {
-        marker.remove();
-        volunteerMarkersRef.current.delete(id);
+  const filteredReports = victimReportsRef.current.filter((r) => {
+    const f = filtersRef.current;
+    if (f.situations.length > 0 && !f.situations.includes(r.situation)) return false;
+    if (f.urgencies.length > 0 && !f.urgencies.includes(r.urgency)) return false;
+    if (f.district && r.district?.trim() !== f.district.trim()) return false;
+    return true;
+  });
+
+  const fitBoundsToData = useCallback(() => {
+    if (!mapRef.current) return;
+    const bounds = new mapboxgl.LngLatBounds();
+    let hasPoints = false;
+    
+    victimReportsRef.current.forEach((report) => {
+      if (report.latitude && report.longitude) {
+        bounds.extend([report.longitude, report.latitude]);
+        hasPoints = true;
       }
     });
-
-    if (layers.volunteers) {
-      volunteersRef.current.forEach((v) => {
-        if (!v.latitude || !v.longitude) return;
-
-        let marker = volunteerMarkersRef.current.get(v.id);
-
-        if (!marker) {
-          const el = document.createElement("div");
-          el.className = "volunteer-marker";
-          el.style.cssText = `
-            width: 28px;
-            height: 28px;
-            background: #1A1E25;
-            border: 2px solid #4A505C;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Barlow Condensed', sans-serif;
-            font-weight: 700;
-            font-size: 12px;
-            color: #F0EDE8;
-            cursor: pointer;
-            position: relative;
-          `;
-          el.innerHTML = `
-            ${v.name.charAt(0)}
-            <span style="
-              position: absolute;
-              bottom: -4px;
-              right: -4px;
-              width: 10px;
-              height: 10px;
-              background: ${getVolunteerStatusColor(v.status, v.last_seen)};
-              border-radius: 50%;
-              border: 1px solid #0D0F12;
-            "></span>
-          `;
-
-          marker = new mapboxgl.Marker({ element: el })
-            .setLngLat([v.longitude, v.latitude])
-            .addTo(mapRef.current!);
-
-          volunteerMarkersRef.current.set(v.id, marker);
-        }
+    
+    volunteersRef.current.forEach((vol) => {
+      if (vol.latitude && vol.longitude) {
+        bounds.extend([vol.longitude, vol.latitude]);
+        hasPoints = true;
+      }
+    });
+    
+    if (routeGeometryRef.current?.coordinates) {
+      routeGeometryRef.current.coordinates.forEach((coord: number[]) => {
+        bounds.extend(coord as [number, number]);
+        hasPoints = true;
       });
     }
-  }, [filters, layers, mapLoaded, selectedReportId, onReportSelect]);
+    
+    if (hasPoints && !bounds.isEmpty()) {
+      mapRef.current.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: { top: 100, bottom: 100, left: 340, right: 100 }, maxZoom: 14, duration: 1000, essential: true });
+    }
+  }, []);
+  
+  fitBoundsToDataRef.current = fitBoundsToData;
 
-  useEffect(() => {
-    if (!mapContainerRef.current) return;
+  const clearRouteSelection = useCallback(() => {
+    setOriginReport(null);
+    setDestinationVolunteer(null);
+    setRouteInfo(null);
+    setSelectionMode("normal");
+    routeGeometryRef.current = null;
+  }, []);
 
-    mapboxgl.accessToken = MAPBOX_TOKEN;
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: mapStyle === "dark" ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/satellite-streets-v12",
-      center: [76.2711, 10.8505],
-      zoom: 8,
-    });
+  const handleVictimClick = useCallback((report: VictimReport) => {
+    if (selectionModeRef.current === "destination" || !originReportRef.current) {
+      setOriginReport(report);
+      setSelectionMode("destination");
+      onReportSelect(report);
+    }
+  }, [onReportSelect]);
 
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
-
-    map.on("load", () => {
-      mapRef.current = map;
-      setMapLoaded(true);
-
-      map.addSource("grid-overlay", {
-        type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: [],
-        },
-      });
-    });
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-      setMapLoaded(false);
-      markersRef.current.clear();
-      volunteerMarkersRef.current.clear();
-    };
+  const handleVolunteerClick = useCallback(async (vol: Volunteer) => {
+    if (originReportRef.current && selectionModeRef.current === "destination") {
+      setDestinationVolunteer(vol);
+      
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${originReportRef.current.longitude},${originReportRef.current.latitude};${vol.longitude},${vol.latitude}?access_token=${MAPBOX_TOKEN}&geometries=geojson`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        const distanceKm = (route.distance / 1000).toFixed(1);
+        const durationMin = Math.round(route.duration / 60);
+        const durationText = durationMin >= 60 ? `${Math.floor(durationMin / 60)}h ${durationMin % 60}m` : `${durationMin} min`;
+        
+        const newRouteInfo = { distance: `${distanceKm} km`, duration: durationText };
+        setRouteInfo(newRouteInfo);
+        routeGeometryRef.current = route.geometry;
+        
+        setTimeout(() => fitBoundsToDataRef.current?.(), 100);
+        setSelectionMode("normal");
+      }
+    }
   }, []);
 
   useEffect(() => {
-    if (mapRef.current && mapLoaded) {
-      mapRef.current.setStyle(
-        mapStyle === "dark" ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/satellite-streets-v12"
-      );
-      mapRef.current.on("style.load", () => {
-        setMapLoaded(true);
-      });
-    }
-  }, [mapStyle, mapLoaded]);
+    if (dataFetchedRef.current) return;
+    dataFetchedRef.current = true;
+    
+    Promise.all([
+      fetch("/api/victim/reports").then((r) => r.json()),
+      fetch("/api/volunteer/locations").then((r) => r.json()),
+    ]).then(([reports, vols]) => {
+      victimReportsRef.current = Array.isArray(reports) ? reports : (reports.reports || []);
+      volunteersRef.current = Array.isArray(vols) ? vols : [];
+      setTimeout(() => fitBoundsToDataRef.current?.(), 500);
+    });
+  }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [reportsRes, volsRes] = await Promise.all([
-          fetch("/api/victim/reports"),
-          fetch("/api/volunteer/locations"),
-        ]);
-
-        if (reportsRes.ok) {
-          const reports = await reportsRes.json();
-          victimReportsRef.current = reports;
-        }
-        if (volsRes.ok) {
-          const vols = await volsRes.json();
-          volunteersRef.current = vols;
-        }
-        updateMarkers();
-      } catch {
-        // silent fail
-      }
-    };
-
-    if (mapLoaded) {
-      fetchData();
+    if (dmaLocation) {
+      fetchPOIData(dmaLocation.lat, dmaLocation.lng);
     }
-  }, [mapLoaded, updateMarkers]);
+  }, [dmaLocation, fetchPOIData]);
 
   useEffect(() => {
-    if (mapLoaded) {
-      updateMarkers();
+    if (!selectedReportId || !mapRef.current) return;
+    const report = victimReportsRef.current.find((r) => r.id === selectedReportId);
+    if (report?.latitude && report?.longitude) {
+      mapRef.current.flyTo({ center: [report.longitude, report.latitude], zoom: 14, duration: 1000, essential: true });
     }
-  }, [filters, layers, mapLoaded, updateMarkers]);
+  }, [selectedReportId]);
 
-  useEffect(() => {
-    if (!mapLoaded || !selectedReportId) return;
-    const marker = markersRef.current.get(selectedReportId);
-    if (marker) {
-      marker.togglePopup();
-    }
-  }, [selectedReportId, mapLoaded]);
+  const routeGeoJSON: GeoJSON.FeatureCollection = routeGeometryRef.current ? {
+    type: "FeatureCollection",
+    features: [{ type: "Feature", properties: {}, geometry: routeGeometryRef.current }]
+  } : { type: "FeatureCollection", features: [] };
+
+  const showPopup = hoveredReport || hoveredVolunteer || hoveredPOI;
 
   return (
     <div className="relative w-full h-full">
-      <div ref={mapContainerRef} className="w-full h-full" />
+      <Map
+        ref={(ref) => { if (ref) mapRef.current = ref.getMap(); }}
+        mapboxAccessToken={MAPBOX_TOKEN}
+        initialViewState={{
+          longitude: 86.43,
+          latitude: 23.79,
+          zoom: 10
+        }}
+        style={{ width: "100%", height: "100%" }}
+        mapStyle={mapStyle === "dark" ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/satellite-streets-v12"}
+        onLoad={() => setMapLoaded(true)}
+      >
+        <NavigationControl position="top-right" showCompass={false} />
+        <ScaleControl position="bottom-left" unit="metric" />
+
+        {layers.needPins && filteredReports.map((report) => (
+          <Marker
+            key={report.id}
+            longitude={report.longitude}
+            latitude={report.latitude}
+            anchor="bottom"
+          >
+            <VictimMarker
+              report={report}
+              isSelected={report.id === selectedReportId}
+              onClick={() => handleVictimClick(report)}
+              onMouseEnter={() => {
+                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                setHoveredReport(report);
+                setPopupPosition({ lng: report.longitude, lat: report.latitude });
+              }}
+              onMouseLeave={() => {
+                hoverTimeoutRef.current = setTimeout(() => {
+                  setHoveredReport(null);
+                }, 150);
+              }}
+            />
+          </Marker>
+        ))}
+
+        {layers.volunteers && volunteersRef.current.map((vol) => (
+          <Marker
+            key={vol.id}
+            longitude={vol.longitude}
+            latitude={vol.latitude}
+            anchor="bottom"
+          >
+            <VolunteerMarker
+              volunteer={vol}
+              onClick={() => handleVolunteerClick(vol)}
+              onMouseEnter={() => {
+                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                setHoveredVolunteer(vol);
+                setPopupPosition({ lng: vol.longitude, lat: vol.latitude });
+              }}
+              onMouseLeave={() => {
+                hoverTimeoutRef.current = setTimeout(() => {
+                  setHoveredVolunteer(null);
+                }, 150);
+              }}
+            />
+          </Marker>
+        ))}
+
+        {layers.hospitals && poiData.hospitals.map((poi) => (
+          <Marker
+            key={`poi-${poi.id}`}
+            longitude={poi.longitude}
+            latitude={poi.latitude}
+            anchor="bottom"
+          >
+            <POIMarker
+              poi={poi}
+              onClick={() => {}}
+              onMouseEnter={() => {
+                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                setHoveredPOI(poi);
+                setPopupPosition({ lng: poi.longitude, lat: poi.latitude });
+              }}
+              onMouseLeave={() => {
+                hoverTimeoutRef.current = setTimeout(() => {
+                  setHoveredPOI(null);
+                }, 150);
+              }}
+            />
+          </Marker>
+        ))}
+
+        {layers.reliefCamps && poiData.reliefCamps.map((poi) => (
+          <Marker
+            key={`poi-${poi.id}`}
+            longitude={poi.longitude}
+            latitude={poi.latitude}
+            anchor="bottom"
+          >
+            <POIMarker
+              poi={poi}
+              onClick={() => {}}
+              onMouseEnter={() => {
+                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                setHoveredPOI(poi);
+                setPopupPosition({ lng: poi.longitude, lat: poi.latitude });
+              }}
+              onMouseLeave={() => {
+                hoverTimeoutRef.current = setTimeout(() => {
+                  setHoveredPOI(null);
+                }, 150);
+              }}
+            />
+          </Marker>
+        ))}
+
+        {routeGeometryRef.current && (
+          <Source id="route" type="geojson" data={routeGeoJSON}>
+            <Layer
+              id="route-line"
+              type="line"
+              layout={{ "line-join": "round", "line-cap": "round" }}
+              paint={{ "line-color": "#FF6B2B", "line-width": 5, "line-opacity": 0.9 }}
+            />
+          </Source>
+        )}
+
+        {showPopup && popupPosition && (
+          <Popup
+            longitude={popupPosition.lng}
+            latitude={popupPosition.lat}
+            closeButton={false}
+            closeOnClick={false}
+            anchor="bottom"
+            offset={30}
+          >
+            <div
+              onMouseEnter={() => {
+                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+              }}
+              onMouseLeave={() => {
+                hoverTimeoutRef.current = setTimeout(() => {
+                  setHoveredReport(null);
+                  setHoveredVolunteer(null);
+                  setHoveredPOI(null);
+                }, 100);
+              }}
+            >
+              {hoveredReport && createReportPopupContent(hoveredReport)}
+              {hoveredVolunteer && createVolunteerPopupContent(hoveredVolunteer)}
+              {hoveredPOI && createPoiPopupContent(hoveredPOI)}
+            </div>
+          </Popup>
+        )}
+
+        {originReport && destinationVolunteer && (
+          <Popup
+            longitude={destinationVolunteer.longitude}
+            latitude={destinationVolunteer.latitude}
+            closeButton={false}
+            closeOnClick={false}
+            anchor="bottom"
+            offset={30}
+          >
+            {createVolunteerPopupContent(destinationVolunteer, true, routeInfo || undefined)}
+          </Popup>
+        )}
+      </Map>
 
       {!mapLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-void">
-          <span className="font-mono text-[11px] text-dim uppercase tracking-wider">
-            LOADING MAP...
-          </span>
+        <div className="absolute inset-0 flex items-center justify-center bg-void z-10">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-12 h-12 border-3 border-orange border-t-transparent rounded-full animate-spin"></div>
+              <div className="absolute inset-0 w-12 h-12 border-3 border-orange/30 rounded-full animate-ping"></div>
+            </div>
+            <div className="text-center">
+              <div className="font-mono text-[11px] text-dim uppercase tracking-[0.2em] mb-1">Initializing Map</div>
+              <div className="font-mono text-[9px] text-dim/50 uppercase tracking-wider">Loading incident data...</div>
+            </div>
+          </div>
         </div>
       )}
 
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-        <button
-          onClick={() => setMapStyle((s) => (s === "dark" ? "satellite" : "dark"))}
-          className="px-3 py-1.5 bg-surface-2 border border-border-dim font-mono text-[10px] text-dim uppercase tracking-wider hover:text-orange hover:border-orange transition-colors"
+        <button 
+          onClick={() => setMapStyleState(mapStyle === "dark" ? "satellite" : "dark")}
+          className="px-3 py-1.5 bg-surface-2/95 backdrop-blur-sm border border-border-dim font-mono text-[10px] text-dim uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-all"
           style={{ clipPath: "var(--clip-tactical-sm)" }}
         >
           {mapStyle === "dark" ? "🛰️ SATELLITE" : "🌑 DARK"}
         </button>
+        <button 
+          onClick={() => fitBoundsToDataRef.current?.()}
+          className="px-3 py-1.5 bg-surface-2/95 backdrop-blur-sm border border-border-dim font-mono text-[10px] text-dim uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-all"
+          style={{ clipPath: "var(--clip-tactical-sm)" }}
+        >
+          🎯 FIT VIEW
+        </button>
+        {(originReport || destinationVolunteer) && (
+          <button 
+            onClick={clearRouteSelection}
+            className="px-3 py-1.5 bg-alert/20 backdrop-blur-sm border border-alert/50 font-mono text-[10px] text-alert uppercase tracking-wider hover:bg-alert/30 transition-all"
+            style={{ clipPath: "var(--clip-tactical-sm)" }}
+          >
+            ✕ CLEAR ROUTE
+          </button>
+        )}
+      </div>
+
+      {selectionMode === "destination" && originReport && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="px-4 py-2 bg-surface-2/95 backdrop-blur-sm border border-orange/50 font-mono text-[11px] text-orange uppercase tracking-wider" style={{ clipPath: "var(--clip-tactical-sm)" }}>
+            📍 Origin selected · Click a responder to measure distance
+          </div>
+        </div>
+      )}
+
+      <div className="absolute bottom-20 left-4 z-10">
+        <div className="px-3 py-2.5 bg-surface-2/95 backdrop-blur-sm border border-border-dim" style={{ clipPath: "var(--clip-tactical-sm)" }}>
+          <div className="text-[9px] font-mono text-dim/70 uppercase tracking-[0.15em] mb-2">Legend</div>
+          <div className="flex flex-col gap-1.5">
+            {Object.entries(SITUATION_STYLES).map(([type, data]) => (
+              <div key={type} className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: data.color }}></div>
+                <span className="font-mono text-[9px] text-dim uppercase tracking-wider">{data.label}</span>
+              </div>
+            ))}
+            <div className="mt-2 pt-2 border-t border-border-dim/50">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-3 h-3 rounded-full bg-[#3B8BFF]"></div>
+                <span className="font-mono text-[9px] text-dim uppercase">Hospital</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#2ECC71]"></div>
+                <span className="font-mono text-[9px] text-dim uppercase">Relief Camp</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2">
+        <div className="px-3 py-1.5 bg-surface-2/95 backdrop-blur-sm border border-border-dim font-mono text-[9px] text-dim/70" style={{ clipPath: "var(--clip-tactical-sm)" }}>
+          {victimReportsRef.current.length} REPORTS · {volunteersRef.current.length} RESPONDERS
+        </div>
+        {routeInfo && (
+          <div className="px-3 py-1.5 bg-orange/20 backdrop-blur-sm border border-orange/50 font-mono text-[9px] text-orange" style={{ clipPath: "var(--clip-tactical-sm)" }}>
+            ↔ {routeInfo.distance} · {routeInfo.duration}
+          </div>
+        )}
       </div>
 
       <style jsx global>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.2); opacity: 0.7; }
-        }
-        .mapboxgl-popup-content {
-          background: transparent !important;
-          padding: 0 !important;
-          box-shadow: none !important;
-        }
-        .mapboxgl-popup-tip {
-          border-top-color: #13161B !important;
-        }
-        .mapboxgl-ctrl-group {
-          background: #0D0F12 !important;
-          border: 1px solid rgba(255,107,43,0.15) !important;
-        }
-        .mapboxgl-ctrl-group button {
-          background: #0D0F12 !important;
-        }
-        .mapboxgl-ctrl-group button:hover {
-          background: #13161B !important;
-        }
-        .mapboxgl-ctrl-group button .mapboxgl-ctrl-icon {
-          filter: invert(1);
-        }
+        .mapboxgl-popup-content { background: transparent !important; padding: 0 !important; box-shadow: none !important; }
+        .mapboxgl-popup-tip { display: none !important; }
+        .mapboxgl-popup { z-index: 50; }
       `}</style>
     </div>
   );

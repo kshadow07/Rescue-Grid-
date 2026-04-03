@@ -6,7 +6,7 @@ export async function GET() {
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("volunteer")
-      .select("id, name, latitude, longitude, status, type, last_seen")
+      .select("id, name, mobile_no, latitude, longitude, status, type, skills, equipment, last_seen")
       .not("latitude", "is", null)
       .not("longitude", "is", null);
 

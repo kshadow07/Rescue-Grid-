@@ -21,7 +21,7 @@ interface MissionCounter {
 }
 
 interface RightSidebarProps {
-  selectedReport: { id: string; phone_no: string; situation: string; urgency: string; city: string; district: string; created_at: string } | null;
+  selectedReport: { id: string; phone_no: string; situation: string; urgency: string; city: string; district: string; created_at: string; custom_message?: string } | null;
   onCreateAssignment: (reportId: string) => void;
 }
 
@@ -130,6 +130,14 @@ export default function RightSidebar({ selectedReport, onCreateAssignment }: Rig
               <div className="font-mono text-[10px] text-dim">
                 {selectedReport.phone_no}
               </div>
+              {selectedReport.custom_message && (
+                <div className="mt-2 p-2 bg-surface-3 border-l-2 border-orange/30">
+                  <div className="font-mono text-[9px] text-dim uppercase tracking-wider mb-1">MESSAGE</div>
+                  <div className="font-body text-[12px] text-ink/80 italic">
+                    "{selectedReport.custom_message}"
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-2 mt-2">
                 <Button
                   size="small"
