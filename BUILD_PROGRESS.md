@@ -1,8 +1,17 @@
 # RescueGrid — Build Progress
 
-**Last Updated:** 2026-04-03T23:17:00+05:30
-**Current Phase:** Phase 6 — COMPLETE ✅
-**Status:** Ready for Phase 7 (Volunteer PWA)
+**Last Updated:** 2026-04-04T00:06:00+05:30
+**Current Phase:** Phase 7 — COMPLETE ✅ (Post-Polish Fixes)
+**Status:** Ready for Phase 8 (DMA Messaging Hub)
+
+---
+
+## Phase 7 — Post-Polish Fixes (2026-04-04)
+
+### Issues Fixed:
+- [x] **Chat input bar missing** — Added `z-50` and safe-area-inset-bottom padding to fixed input bar
+- [x] **Tasks/Active tab routing bug** — Fixed `isActive()` function to do exact pathname matching instead of incorrectly highlighting both tabs
+- [x] **Map WebGL container warning** — Added check for childNodes.length > 0 before initializing map
 
 ---
 
@@ -307,14 +316,98 @@
 
 ---
 
+## Phase 7 — Volunteer PWA ✅ COMPLETE
+
+### 7.1 Volunteer Layout ✅ (UPDATED)
+- [x] `app/(volunteer)/volunteer/layout.tsx`
+- [x] Status bar strip (top 40px): time + "RESCUEGRID" logo in professional Mono styling
+- [x] Active mission persistent strip: orange bg, mission name + pulsing dot + timer + arrow
+- [x] Professional bottom nav (68px): Tasks · Active · Map · Profile with SVG icons
+- [x] Tasks tab badge: orange notification badge with pending count
+- [x] Active tab badge: green pulsing dot when mission active
+
+### 7.2 Missions Screen (`/volunteer/missions`) ✅ (UPDATED)
+- [x] Two tabs: QUEUE · HISTORY with angular clip-path styling
+- [x] Queue: assignments where volunteer is assignee or TF member, `status = 'open'/'active'`
+- [x] Each card shows: status badge, urgency badge, task title, location, timer, timestamp
+- [x] Clear visual distinction: border color by status (orange=active, ops=completed, alert=failed)
+- [x] Expandable cards with "Tap to collapse/expand" cue
+- [x] "START MISSION →" vs "CONTINUE MISSION →" based on status
+- [x] Quick action buttons (Map, Team Chat) visible after expanding
+
+### 7.3 Active Mission Screen (`/volunteer/active`) ✅ (UPDATED)
+- [x] Mission header: ID badge, status badge, urgency label
+- [x] Location card: address, coordinates, countdown timer if set
+- [x] Status buttons: ON MY WAY / ARRIVED / ✓ COMPLETE / ✗ FAILED
+- [x] **Task Force Section**: shows TF name, member count, member avatars with initials and type badges
+- [x] Team Chat button in TF section
+- [x] VIEW ROUTE ON MAP button
+- [x] Empty state with icon and "VIEW QUEUE" button
+
+### 7.4 Map Screen (`/volunteer/map`) ✅
+- [x] Mapbox dark map, full screen
+- [x] Volunteer live GPS dot — `watchPosition` every update → PATCH `/api/volunteer/location`
+- [x] Assignment destination: orange pin marker
+- [x] Mapbox Directions API live route: fetches on load, renders as orange LineLayer
+- [x] Distance + ETA overlay chip at bottom
+- [x] `OPEN IN GOOGLE MAPS ↗` ghost button → deep link with destination coords
+
+### 7.5 Task Force Chat (`/volunteer/chat/[taskforce_id]`) ✅ (UPDATED)
+- [x] Chat header with back arrow, TF avatar, name, member count
+- [x] Team members panel (toggleable): shows all TF members with initials, name, type badge, online status
+- [x] Message bubbles: WhatsApp-style with angular clip-path
+- [x] DMA messages: orange background with "🟧 DMA COMMAND" label
+- [x] Own messages: right-aligned with distinct style
+- [x] Other volunteer messages: left-aligned with sender name
+- [x] Flag button on each message (⚑)
+- [x] Fixed bottom input bar with text input and send button
+- [x] Date separators between message groups
+- [x] Empty state with icon
+
+### 7.6 Profile Screen (`/volunteer/profile`) ✅
+- [x] Display: name, type badge, skills, equipment from `volunteer` row
+- [x] **Availability toggle** — ACTIVE (orange) / OFFLINE (gray) → PATCH `/api/volunteer/status`
+- [x] On load: register push subscription via `pushManager.subscribe` → POST `/api/volunteer/push-token`
+- [x] Notification preferences display (visual only)
+
+### API Routes Created (Phase 7)
+- [x] `GET /api/volunteer/assignment` — get active assignment for volunteer
+- [x] `PATCH /api/volunteer/assignment/[id]` — accept/update status (on_my_way/arrived/completed/failed)
+- [x] `GET /api/volunteer/assignment/queue` — queue assignments for volunteer
+- [x] `GET /api/volunteer/assignment/history` — completed/failed assignments
+- [x] `PATCH /api/volunteer/location` — update GPS coordinates + last_seen
+- [x] `GET /api/volunteer/message` — fetch TF messages with sender info
+- [x] `POST /api/volunteer/message` — send message in TF room
+- [x] `PATCH /api/volunteer/message/[id]/flag` — flag message for DMA
+- [x] `PATCH /api/volunteer/status` — toggle availability (active/offline)
+- [x] `POST /api/volunteer/push-token` — register push subscription
+- [x] `GET /api/volunteer/me` — get current volunteer profile
+
+### New/Updated Files (Phase 7)
+- `app/(volunteer)/volunteer/layout.tsx` — Volunteer PWA shell with bottom nav
+- `app/(volunteer)/volunteer/missions/page.tsx` — Missions queue/history
+- `app/(volunteer)/volunteer/active/page.tsx` — Active mission with status buttons
+- `app/(volunteer)/volunteer/map/page.tsx` — Map with live GPS and routing
+- `app/(volunteer)/volunteer/chat/[taskforce_id]/page.tsx` — TF chat with messaging
+- `app/(volunteer)/volunteer/profile/page.tsx` — Profile with availability toggle
+- `app/api/volunteer/assignment/route.ts` — GET active assignment
+- `app/api/volunteer/assignment/[id]/route.ts` — PATCH status
+- `app/api/volunteer/assignment/queue/route.ts` — GET queue
+- `app/api/volunteer/assignment/history/route.ts` — GET history
+- `app/api/volunteer/message/route.ts` — GET/POST messages
+- `app/api/volunteer/message/[id]/flag/route.ts` — PATCH flag
+- `app/api/volunteer/status/route.ts` — PATCH status
+- `app/api/volunteer/push-token/route.ts` — POST push token
+- `app/api/volunteer/me/route.ts` — GET volunteer profile
+
+---
+
 ## Next Phase
 
-**Phase 7: Volunteer PWA**
-- 7.1: Missions Screen (`/volunteer/missions`)
-- 7.2: Active Mission Screen (`/volunteer/active`)
-- 7.3: Map Screen (`/volunteer/map`)
-- 7.4: Task Force Chat (`/volunteer/chat/[taskforce_id]`)
-- 7.5: Profile Screen (`/volunteer/profile`)
+**Phase 8: DMA Messaging Hub**
+- 8.1: Messages Page (`/dma/messages`) — All 5 channel types
+- 8.2: API Route — DMA Send Message
+- 8.3: Flag Handler
 
 ---
 
