@@ -59,7 +59,9 @@ export default function MessagesPage() {
         const data = await res.json();
         setChannels(data);
       }
-    } catch {}
+    } catch (err) {
+      console.error("Error fetching channels:", err);
+    }
     setLoading(false);
   }, []);
 
@@ -73,7 +75,9 @@ export default function MessagesPage() {
         const data = await res.json();
         setMessages(data);
       }
-    } catch {}
+    } catch (err) {
+      console.error("Error fetching messages:", err);
+    }
   }, [activeChannel]);
 
   const fetchChannelData = useCallback(async () => {
@@ -85,7 +89,27 @@ export default function MessagesPage() {
           const data = await res.json();
           setActiveChannelData(data.report);
         }
-      } catch {}
+      } catch (err) {
+        console.error("Error fetching channel data:", err);
+      }
+    } else {
+      setActiveChannelData(null);
+    }
+  }, [activeChannel]);
+
+  const markAsRead = useCallback(async () => {
+    if (!activeChannel) return;
+    try {
+      await fetch("/api/dma/message/read", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel_type: activeChannel.type,
+          channel_id: activeChannel.id,
+        }),
+      });
+    } catch (err) {
+      console.error("Error marking as read:", err);
     }
   }, [activeChannel]);
 
@@ -97,15 +121,32 @@ export default function MessagesPage() {
     if (activeChannel) {
       fetchMessages();
       fetchChannelData();
+      markAsRead();
     }
-  }, [activeChannel, fetchMessages, fetchChannelData]);
+  }, [activeChannel, fetchMessages, fetchChannelData, markAsRead]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
-    const channelName = `dma-messages-${Date.now()}`;
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    if (!activeChannel) return;
+
+    let filter = "";
+    if (activeChannel.type === "victim_thread") {
+      filter = `victim_report_id=eq.${activeChannel.id}`;
+    } else if (activeChannel.type === "taskforce_room") {
+      filter = `task_force_id=eq.${activeChannel.id}`;
+    } else if (activeChannel.type === "direct") {
+      filter = `receiver_id=eq.${activeChannel.id}`;
+    }
+
+    const channelName = `dma-messages-${activeChannel.type}-${activeChannel.id}`;
     channelRef.current = supabase
       .channel(channelName)
       .on(
@@ -114,24 +155,11 @@ export default function MessagesPage() {
           event: "INSERT",
           schema: "public",
           table: "message",
-          filter: "is_flagged_for_dma=eq.true",
+          filter,
         },
         () => {
+          fetchMessages();
           fetchChannels();
-        }
-      )
-      .on(
-        "postgres_changes" as const,
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "message",
-        },
-        () => {
-          if (activeChannel) {
-            fetchMessages();
-            fetchChannels();
-          }
         }
       )
       .on(
@@ -140,12 +168,11 @@ export default function MessagesPage() {
           event: "UPDATE",
           schema: "public",
           table: "message",
+          filter,
         },
         () => {
-          if (activeChannel) {
-            fetchMessages();
-            fetchChannels();
-          }
+          fetchMessages();
+          fetchChannels();
         }
       )
       .subscribe();
@@ -153,6 +180,7 @@ export default function MessagesPage() {
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
     };
   }, [supabase, activeChannel, fetchChannels, fetchMessages]);
@@ -179,7 +207,9 @@ export default function MessagesPage() {
         fetchMessages();
         fetchChannels();
       }
-    } catch {}
+    } catch (err) {
+      console.error("Error sending message:", err);
+    }
     setSending(false);
   };
 
@@ -204,6 +234,7 @@ export default function MessagesPage() {
   };
 
   const getInitials = (name: string) => {
+    if (!name) return "??";
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
@@ -323,6 +354,9 @@ export default function MessagesPage() {
                     <p className="font-mono text-[9px] text-dim mt-0.5">
                       {activeChannelData.city}, {activeChannelData.district}
                     </p>
+                    <p className="font-mono text-[9px] text-muted mt-0.5">
+                      📞 {activeChannelData.phone_no}
+                    </p>
                   </div>
                 )}
               </div>
@@ -349,6 +383,7 @@ export default function MessagesPage() {
                       {group.messages.map((msg) => {
                         const isDma = msg.sender_type === "dma";
                         const isFlagged = msg.is_flagged_for_dma;
+                        const isUnread = !msg.read_at && !isDma;
 
                         return (
                           <div
@@ -360,7 +395,9 @@ export default function MessagesPage() {
                             <div className={`max-w-[70%] ${isDma ? "items-end" : "items-start"}`}>
                               {!isDma && (
                                 <div className="flex items-center gap-2 mb-1 ml-1">
-                                  <span className="font-display text-[10px] font-semibold text-orange uppercase">
+                                  <span className={`font-display text-[10px] font-semibold uppercase ${
+                                    isUnread ? "text-orange" : "text-muted"
+                                  }`}>
                                     {msg.sender_name || "Victim"}
                                   </span>
                                 </div>

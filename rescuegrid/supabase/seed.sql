@@ -41,7 +41,7 @@ UPDATE task_force SET assignment_id = 'd2222222-2222-2222-2222-222222222222' WHE
 -- Messages (6) - victim thread, TF room, direct channel
 INSERT INTO message (content, sender_type, sender_id, task_force_id, victim_report_id, receiver_id, is_flagged_for_dma) VALUES
   ('Help! Water is entering our house. Two children with us. Please send help immediately!', 'victim', NULL, NULL, 'c1111111-1111-1111-1111-111111111111', NULL, false),
-  ('We have dispatched a rescue team. Stay on higher ground. ETA 20 mins. Keep children safe.', 'dma', NULL, NULL, 'c1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', false),
+  ('We have dispatched a rescue team. Stay on higher ground. ETA 20 mins. Keep children safe.', 'dma', NULL, NULL, 'c1111111-1111-1111-1111-111111111111', NULL, false),
   ('Team assembling at base. Medical supplies loaded for Sindri relief camp.', 'volunteer', 'a3333333-3333-3333-3333-333333333333', 'b2222222-2222-2222-2222-222222222222', NULL, NULL, false),
   ('All units check in once deployed. Primary focus on structural collapse at Bokaro.', 'dma', NULL, 'b2222222-2222-2222-2222-222222222222', NULL, NULL, false),
   ('Alpha team, be advised: water level rising in Dhanbad low-lying areas near mines.', 'dma', NULL, 'b1111111-1111-1111-1111-111111111111', NULL, NULL, false),

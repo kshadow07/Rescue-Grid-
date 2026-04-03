@@ -10,38 +10,82 @@ export async function GET(request: Request) {
 
   try {
     if (channelType === "victim_thread" && channelId) {
-      const { data, error } = await supabase
+      const { data: messages, error } = await supabase
         .from("message")
         .select("*")
         .eq("victim_report_id", channelId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      return NextResponse.json(data);
+
+      if (messages && messages.length > 0) {
+        const { data: victimReport } = await supabase
+          .from("victim_report")
+          .select("phone_no")
+          .eq("id", channelId)
+          .single();
+
+        const phoneNo = victimReport?.phone_no || "Unknown";
+
+        const messagesWithSender = messages.map((msg) => ({
+          ...msg,
+          sender_name: msg.sender_type === "victim" ? phoneNo : msg.sender_type === "dma" ? "DMA Command" : "Unknown",
+        }));
+
+        return NextResponse.json(messagesWithSender);
+      }
+
+      return NextResponse.json(messages || []);
     }
 
     if (channelType === "taskforce_room" && channelId) {
-      const { data, error } = await supabase
+      const { data: messages, error } = await supabase
         .from("message")
-        .select("*")
+        .select(`
+          *,
+          sender:volunteer(id, name, type)
+        `)
         .eq("task_force_id", channelId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      return NextResponse.json(data);
+
+      if (messages && messages.length > 0) {
+        const messagesWithSender = messages.map((msg) => ({
+          ...msg,
+          sender_name: msg.sender_type === "dma" ? "DMA Command" : msg.sender?.name || "Unknown Volunteer",
+        }));
+
+        return NextResponse.json(messagesWithSender);
+      }
+
+      return NextResponse.json(messages || []);
     }
 
     if (channelType === "direct" && channelId) {
-      const { data, error } = await supabase
+      const { data: messages, error } = await supabase
         .from("message")
-        .select("*")
+        .select(`
+          *,
+          sender:volunteer(id, name, type)
+        `)
         .or(`receiver_id.eq.${channelId},sender_id.eq.${channelId}`)
         .is("task_force_id", null)
         .is("victim_report_id", null)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      return NextResponse.json(data);
+
+      if (messages && messages.length > 0) {
+        const messagesWithSender = messages.map((msg) => ({
+          ...msg,
+          sender_name: msg.sender_type === "dma" ? "DMA Command" : msg.sender?.name || "Unknown",
+        }));
+
+        return NextResponse.json(messagesWithSender);
+      }
+
+      return NextResponse.json(messages || []);
     }
 
     return NextResponse.json({ error: "Invalid channel parameters" }, { status: 400 });
