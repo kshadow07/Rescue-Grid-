@@ -17,7 +17,7 @@ interface TopbarProps {
 
 const NAV_TABS = [
   { label: "Dashboard", href: "/dma/dashboard" },
-  { label: "Deployments", href: "/dma/deployments" },
+  { label: "Task Forces", href: "/dma/deployments" },
   { label: "Resources", href: "/dma/resources" },
   { label: "Broadcast", href: "/dma/broadcast" },
   { label: "Messages", href: "/dma/messages" },
@@ -128,7 +128,7 @@ export default function Topbar({ loginTime }: TopbarProps) {
         <Button
           size="small"
           variant="primary"
-          onClick={() => router.push("/dma/assignments")}
+          onClick={() => router.push("/dma/dashboard?create=true")}
         >
           + CREATE TASK
         </Button>

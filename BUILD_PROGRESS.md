@@ -1,8 +1,8 @@
 # RescueGrid — Build Progress
 
-**Last Updated:** 2026-04-03T20:25:00+05:30
-**Current Phase:** Phase 4.1–4.5 — COMPLETE ✅
-**Status:** Ready for Phase 5 (Assignment System)
+**Last Updated:** 2026-04-03T22:55:00+05:30
+**Current Phase:** Phase 5 — COMPLETE ✅
+**Status:** Ready for Phase 6 (Task Force Management)
 
 ---
 
@@ -210,7 +210,68 @@
 
 ---
 
-## Verification Required
+## Phase 5 — Assignment System ✅ COMPLETE
+
+### 5.1 Create Assignment Modal ✅
+- [x] `components/dma/CreateAssignmentModal.tsx`
+- [x] Triggered by `+ CREATE TASK` in topbar (navigates to `/dma/dashboard?create=true`)
+- [x] Task description textarea
+- [x] Mapbox SearchBox location: live suggestions → auto-fill `location_label` + `latitude` + `longitude`
+- [x] **Location auto-filled** when opened from pin popup (pre-fills from victim report city/district + lat/lng)
+- [x] Urgency select: Critical / Urgent / Moderate
+- [x] Assign To radio: Individual Volunteer OR Task Force (mutually exclusive)
+- [x] Timer (optional) datetime-local input
+- [x] Linked Report (optional) dropdown of open victim reports
+- [x] `CREATE ASSIGNMENT` primary button → POST `/api/dma/assignment`
+- [x] `CANCEL` ghost button closes modal
+
+### 5.2 API Route — Create Assignment ✅
+- [x] `POST /api/dma/assignment` — validate required fields
+- [x] Enforces exactly one of `assigned_to_volunteer` OR `assigned_to_taskforce`
+- [x] Insert with `status = 'active'`
+- [x] Push notification to volunteer or all TF members via `lib/push/sendPush.ts`
+
+### 5.3 Assignments List (`/dma/assignments`) ✅
+- [x] `app/(dma)/dma/assignments/page.tsx`
+- [x] Card list sorted `created_at DESC`
+- [x] Each card: task, urgency badge, status badge, assignee name, location_label, timer countdown
+- [x] Click to expand: full task, linked report, coordinates, action buttons
+- [x] `MARK COMPLETED` (ops) + `MARK FAILED` (danger) buttons → PATCH `/api/dma/assignment/[id]`
+
+### 5.4 API Route — Update Assignment Status ✅
+- [x] `PATCH /api/dma/assignment/[id]` — accepts `completed` or `failed`
+- [x] Updates `assignment.status` and `assignment.updated_at`
+- [x] If `completed` and `victim_report_id` set → `victim_report.status = 'resolved'`
+
+### API Routes Created
+- [x] `POST /api/dma/assignment` — create assignment with push notification
+- [x] `PATCH /api/dma/assignment/[id]` — update status (completed/failed)
+- [x] `GET /api/dma/assignment/list` — list all with enriched volunteer/TF/report names
+- [x] `GET /api/dma/taskforce/list` — task force list for modal dropdowns
+
+### New/Updated Files (Phase 5)
+- `components/dma/CreateAssignmentModal.tsx` — full assignment creation form with Mapbox SearchBox
+- `app/(dma)/dma/assignments/page.tsx` — assignment list with expand/complete/fail
+- `app/api/dma/assignment/route.ts` — POST create assignment
+- `app/api/dma/assignment/[id]/route.ts` — PATCH update status
+- `app/api/dma/assignment/list/route.ts` — GET assignment list with joins
+- `app/api/dma/taskforce/list/route.ts` — GET task force list
+- `lib/push/sendPush.ts` — lazy-init web-push with VAPID, graceful no-op if keys missing
+- `app/(dma)/dma/dashboard/page.tsx` — refactored with Suspense boundary for useSearchParams
+- `components/dma/Topbar.tsx` — `+ CREATE TASK` navigates to `/dma/dashboard?create=true`; "Deployments" tab renamed to "Task Forces"
+
+---
+
+## Next Phase
+
+**Phase 6: Task Force Management**
+- 6.1: Deployments Page (`/dma/deployments`) — TF list, dissolve, open room
+- 6.2: Create Task Force Modal
+- 6.3: API Routes — POST/PATCH task force
+
+---
+
+## Technical Notes
 
 **Please verify Phase 4 by:**
 

@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Topbar from "@/components/dma/Topbar";
 import LeftSidebar from "@/components/dma/LeftSidebar";
 import RightSidebar from "@/components/dma/RightSidebar";
 import MapboxMap from "@/components/dma/MapboxMap";
+import CreateAssignmentModal from "@/components/dma/CreateAssignmentModal";
 import { createClient } from "@/lib/supabase/client";
-import { createServiceClient } from "@/lib/supabase/service";
 
 interface VictimReport {
   id: string;
@@ -34,10 +34,10 @@ interface Resource {
   updated_at: string;
 }
 
-export default function DmaDashboardPage() {
+function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loginTime] = useState(() => new Date());
-  const [session, setSession] = useState<{ user?: { id: string; email?: string } } | null>(null);
   const [loading, setLoading] = useState(true);
   const [dmaLocation, setDmaLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -79,15 +79,20 @@ export default function DmaDashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (searchParams.get("create") === "true") {
+      setShowCreateModal(true);
+      router.replace("/dma/dashboard");
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
     const checkAuth = async () => {
       const supabase = createClient();
       const { data: { session: authSession } } = await supabase.auth.getSession();
-      
       if (!authSession) {
         router.push("/dma/login");
         return;
       }
-      setSession({ user: authSession.user });
       setLoading(false);
     };
     checkAuth();
@@ -199,31 +204,29 @@ export default function DmaDashboardPage() {
       </div>
 
       {showCreateModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-void/80">
-          <div
-            className="w-[600px] max-h-[80vh] overflow-y-auto bg-surface-2 border-t-[2px] border-orange"
-            style={{ clipPath: "var(--clip-tactical)" }}
-          >
-            <div className="p-6">
-              <h2 className="font-display text-[24px] font-bold uppercase tracking-wide text-ink mb-6">
-                CREATE ASSIGNMENT
-              </h2>
-              <p className="font-mono text-[11px] text-dim uppercase tracking-wider mb-4">
-                Assignment modal — Phase 5 feature
-              </p>
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setCreateModalReportId(null);
-                }}
-                className="px-4 py-2 bg-surface-3 border border-border-dim font-mono text-[11px] text-dim uppercase tracking-wider hover:text-ink transition-colors"
-              >
-                CLOSE
-              </button>
-            </div>
-          </div>
-        </div>
+        <CreateAssignmentModal
+          linkedReportId={createModalReportId}
+          onClose={() => {
+            setShowCreateModal(false);
+            setCreateModalReportId(null);
+          }}
+          onCreated={() => {}}
+        />
       )}
     </div>
+  );
+}
+
+export default function DmaDashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-screen flex items-center justify-center bg-void">
+        <span className="font-mono text-[11px] text-dim uppercase tracking-wider">
+          LOADING...
+        </span>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }
