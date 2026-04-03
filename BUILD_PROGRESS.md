@@ -1,8 +1,8 @@
 # RescueGrid — Build Progress
 
-**Last Updated:** 2026-04-03T22:55:00+05:30
-**Current Phase:** Phase 5 — COMPLETE ✅
-**Status:** Ready for Phase 6 (Task Force Management)
+**Last Updated:** 2026-04-03T23:17:00+05:30
+**Current Phase:** Phase 6 — COMPLETE ✅
+**Status:** Ready for Phase 7 (Volunteer PWA)
 
 ---
 
@@ -262,12 +262,59 @@
 
 ---
 
+## Phase 6 — Task Force Management ✅ COMPLETE
+
+### 6.1 Deployments Page (`/dma/deployments`) ✅
+- [x] `app/(dma)/dma/deployments/page.tsx`
+- [x] Card list: all task forces (active + dissolved)
+- [x] Each card: TF name, member count, status badge, linked assignment name
+- [x] `OPEN ROOM` secondary Button → navigate to `/dma/messages?tf=[id]`
+- [x] `DISSOLVE` danger Button → PATCH `/api/dma/taskforce/[id]` `{ status: 'dissolved' }`
+- [x] `+ CREATE TASK FORCE` primary Button → opens Create TF modal
+- [x] Expandable cards showing member list with avatar, name, type
+- [x] Empty state when no task forces exist
+
+### 6.2 Create Task Force Modal ✅
+- [x] `components/dma/CreateTaskForceModal.tsx`
+- [x] `NAME` InputField (required)
+- [x] `ADD MEMBERS` — multi-select from `volunteer` rows with name + type + status badge
+- [x] `ASSIGN MISSION (optional)` — dropdown of active assignments
+- [x] `CREATE` primary Button → POST `/api/dma/taskforce`
+- [x] `CANCEL` ghost Button → closes modal
+
+### 6.3 API Routes — Task Force ✅
+
+#### `POST /api/dma/taskforce`
+- [x] Validates: name required, at least one member required
+- [x] Insert into `task_force` with status 'active'
+- [x] Insert one `task_force_member` row per selected volunteer
+- [x] Return created TF with members
+
+#### `PATCH /api/dma/taskforce/[id]`
+- [x] Update `task_force.status` (dissolve: status = 'dissolved')
+- [x] Support member add: `{ addVolunteer: uuid }` → insert `task_force_member`
+- [x] Support member remove: `{ removeVolunteer: uuid }` → delete `task_force_member`
+
+### 6.4 Supporting API Routes ✅
+- [x] `GET /api/dma/taskforce/list` — enhanced to return member count, member details, and assignment name
+
+### New/Updated Files (Phase 6)
+- `app/api/dma/taskforce/route.ts` — POST create task force
+- `app/api/dma/taskforce/[id]/route.ts` — PATCH update/dissolve task force
+- `app/api/dma/taskforce/list/route.ts` — GET list with enriched data
+- `components/dma/CreateTaskForceModal.tsx` — Create TF form modal
+- `app/(dma)/dma/deployments/page.tsx` — Deployments page with card list
+
+---
+
 ## Next Phase
 
-**Phase 6: Task Force Management**
-- 6.1: Deployments Page (`/dma/deployments`) — TF list, dissolve, open room
-- 6.2: Create Task Force Modal
-- 6.3: API Routes — POST/PATCH task force
+**Phase 7: Volunteer PWA**
+- 7.1: Missions Screen (`/volunteer/missions`)
+- 7.2: Active Mission Screen (`/volunteer/active`)
+- 7.3: Map Screen (`/volunteer/map`)
+- 7.4: Task Force Chat (`/volunteer/chat/[taskforce_id]`)
+- 7.5: Profile Screen (`/volunteer/profile`)
 
 ---
 
@@ -292,11 +339,12 @@
 
 ## Next Phase
 
-**Phase 5: Assignment System**
-- 5.1: Create Assignment Modal with Mapbox SearchBox location
-- 5.2: API Route — Create Assignment with push notifications
-- 5.3: Assignments List (`/dma/assignments`)
-- 5.4: API Route — Update Assignment Status
+**Phase 7: Volunteer PWA**
+- 7.1: Missions Screen (`/volunteer/missions`) — Queue/History tabs, Accept button
+- 7.2: Active Mission Screen (`/volunteer/active`) — ON MY WAY/ARRIVED/MARK COMPLETED/FAILED
+- 7.3: Map Screen (`/volunteer/map`) — Live GPS, directions API, route rendering
+- 7.4: Task Force Chat (`/volunteer/chat/[taskforce_id]`) — Message bubbles, flag button
+- 7.5: Profile Screen (`/volunteer/profile`) — Availability toggle, push subscription
 
 ---
 
