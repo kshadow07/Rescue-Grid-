@@ -1,8 +1,8 @@
 # RescueGrid — Build Progress
 
-**Last Updated:** 2026-04-03T16:50:00+05:30
-**Current Phase:** Phase 1 — COMPLETE ✅
-**Status:** Ready for Phase 2 (Authentication)
+**Last Updated:** 2026-04-03T17:20:00+05:30
+**Current Phase:** Phase 2 — COMPLETE ✅ (REFACTORED)
+**Status:** Ready for Phase 3 (Victim Report Flow)
 
 ---
 
@@ -41,7 +41,7 @@
 
 ---
 
-## Phase 1 — Database Schema 🔄 IN PROGRESS
+## Phase 1 — Database Schema ✅ COMPLETE
 
 ### 1.1 Migrations ✅
 - [x] `supabase/migrations/001_initial_schema.sql` created with all 7 tables
@@ -72,29 +72,60 @@
 
 ---
 
+## Phase 2 — Authentication ✅ COMPLETE
+
+### 2.1 DMA Login (`/dma/login`) ✅
+- [x] Page: `RESCUEGRID` logo, email `InputField`, password `InputField`, `LOGIN →` primary Button
+- [x] Password visibility toggle (eye icon)
+- [x] Calls `supabase.auth.signInWithPassword({ email, password })` on submit
+- [x] On success → redirect to `/dma/dashboard`
+- [x] On error → inline error in `--red-alert`, JetBrains Mono 11px
+
+### 2.2 Volunteer Login (`/volunteer/login`) ✅ — REFACTORED
+- [x] **TRUE DEMO MODE** — Single-step login, no OTP/SMS
+- [x] Phone number input → validates against `volunteer` table
+- [x] `POST /api/volunteer/login` — server-side validation using service_role
+- [x] Sets `volunteer_session` cookie with `{ volunteer_id, phone, name }`
+- [x] No Twilio/SMS dependency — works offline
+- [x] On success → redirect to `/volunteer/missions`
+
+### 2.3 Auth Helpers ✅
+- [x] `lib/auth/getSession.ts` — server-side Supabase session retrieval (for DMA)
+- [x] `lib/auth/getVolunteer.ts` — server-side volunteer from cookie session (for volunteer)
+
+### 2.4 Middleware Auth Protection ✅
+- [x] `/dma/*` routes (except `/dma/login`) redirect to `/dma/login` if no Supabase session
+- [x] `/volunteer/*` routes (except `/volunteer/login`) redirect to `/volunteer/login` if no `volunteer_session` cookie
+
+---
+
 ## Verification Required
 
-**Please verify Phase 1.3 (RLS) by:**
+**Please verify Phase 2 by:**
 
-1. In Supabase SQL Editor, run `002_rls_policies.sql`
-2. Verify RLS is enabled: Table Editor → select each table → check "RLS Enabled" badge
-3. Test with anon role in SQL Editor:
-```sql
--- Should succeed (anon INSERT)
-INSERT INTO victim_report (phone_no, situation) VALUES ('+919988776600', 'rescue');
+### DMA Login Test:
+1. Navigate to `/dma/login`
+2. You need a DMA user created in Supabase Auth dashboard (email + password)
+3. Enter credentials → should redirect to `/dma/dashboard`
+4. Clear session → access `/dma/dashboard` → should redirect back to `/dma/login`
 
--- Should fail (anon cannot read all)
-SELECT * FROM volunteer;  -- should return 0 rows
-```
+### Volunteer Login Test:
+1. Navigate to `/volunteer/login`
+2. Enter a phone number from your seed data (e.g., `+919988776600` — Arjun Singh)
+3. Click "LOGIN →" → should redirect to `/volunteer/missions`
+4. Clear `volunteer_session` cookie → access `/volunteer/missions` → should redirect to `/volunteer/login`
+
+**Note:** You must create at least one DMA user in Supabase Auth (Authentication → Add User → Email + Password) before testing DMA login.
 
 ---
 
 ## Next Phase
 
-**Phase 2: Authentication**
-- DMA: email/password login at `/dma/login`
-- Volunteer: phone OTP login at `/volunteer/login` (demo mode, code `123456`)
-- Auth helpers: `lib/auth/getSession.ts`, `lib/auth/getVolunteer.ts`
+**Phase 3: Victim Report Flow**
+- 3.1: Victim Home Screen (`/`) — 2×3 situation card grid
+- 3.2: Report Form (`/report/[type]`) — Mapbox map + GPS + phone input
+- 3.3: API Route — Create Report (`POST /api/victim/report`)
+- 3.4: Report Status Screen (`/report/status/[id]`) — live status + message thread
 
 ---
 
@@ -104,7 +135,20 @@ SELECT * FROM volunteer;  -- should return 0 rows
 - Package Manager: Bun only (never npm/npx/yarn)
 - Tailwind CSS v4 — uses CSS-based `@theme` configuration in globals.css
 - Project location: `rescuegrid/` subdirectory
-- Next.js 16 middleware uses `proxy.ts` (not `middleware.ts`) — warning present but build passes
-- Database: 7 tables with circular FK (task_force ↔ assignment) resolved via ALTER TABLE after table creation
-- Seed IDs: Use UUIDs starting with a/b/c/d prefixes for easy identification
-- Migration files: `001_initial_schema.sql`, `002_rls_policies.sql`
+- Next.js 16 uses `proxy.ts` convention (middleware warning present but build passes)
+- Database: 7 tables with circular FK (task_force ↔ assignment) resolved via ALTER TABLE
+
+### Auth Architecture (REFACTORED)
+- **DMA Auth:** Supabase Auth email/password → `sb-access-token` / `sb-refresh-token` cookies
+- **Volunteer Auth:** Custom demo mode → `volunteer_session` cookie (JSON with volunteer_id, phone, name)
+  - No Twilio/SMS dependency
+  - Validates phone against `volunteer.mobile_no` in DB
+  - Cookie is httpOnly, secure in production, 7-day expiry
+  - **⚠️ Future:** When ready for real OTP, enable Twilio in Supabase Dashboard → Authentication → Providers → Phone. The flow can be switched to `supabase.auth.signInWithOtp()` + `supabase.auth.verifyOtp()` without major code changes.
+
+### New/Updated Files
+- `app/(dma)/dma/login/page.tsx` — DMA login with password toggle
+- `app/(volunteer)/volunteer/login/page.tsx` — Single-step demo login
+- `app/api/volunteer/login/route.ts` — NEW: Demo mode API (validates phone, sets cookie)
+- `lib/auth/getVolunteer.ts` — Updated for cookie-based volunteer session
+- `middleware.ts` — Updated to check `volunteer_session` cookie for volunteer routes

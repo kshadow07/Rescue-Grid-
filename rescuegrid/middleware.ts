@@ -29,7 +29,32 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  const pathname = request.nextUrl.pathname;
+
+  // Check for Supabase auth session (DMA)
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Check for volunteer session cookie
+  const volunteerCookie = request.cookies.get('volunteer_session');
+  const hasVolunteerSession = volunteerCookie ? JSON.parse(volunteerCookie.value) : null;
+
+  // DMA routes require Supabase auth session (except login page)
+  if (pathname.startsWith('/dma') && !pathname.startsWith('/dma/login')) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dma/login';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Volunteer routes require volunteer session cookie (except login page)
+  if (pathname.startsWith('/volunteer') && !pathname.startsWith('/volunteer/login')) {
+    if (!hasVolunteerSession) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/volunteer/login';
+      return NextResponse.redirect(url);
+    }
+  }
 
   return supabaseResponse;
 }
