@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   const channelType = searchParams.get("channel_type");
   const channelId = searchParams.get("channel_id");
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   try {
     if (channelType === "victim_thread" && channelId) {
@@ -41,19 +41,33 @@ export async function GET(request: Request) {
     if (channelType === "taskforce_room" && channelId) {
       const { data: messages, error } = await supabase
         .from("message")
-        .select(`
-          *,
-          sender:volunteer(id, name, type)
-        `)
+        .select("*")
         .eq("task_force_id", channelId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
 
       if (messages && messages.length > 0) {
+        const senderIds = [...new Set(messages.filter(m => m.sender_id).map(m => m.sender_id))];
+        let senderNames: Record<string, string> = {};
+
+        if (senderIds.length > 0) {
+          const { data: volunteers } = await supabase
+            .from("volunteer")
+            .select("id, name")
+            .in("id", senderIds);
+
+          if (volunteers) {
+            senderNames = volunteers.reduce((acc, v) => {
+              acc[v.id] = v.name;
+              return acc;
+            }, {} as Record<string, string>);
+          }
+        }
+
         const messagesWithSender = messages.map((msg) => ({
           ...msg,
-          sender_name: msg.sender_type === "dma" ? "DMA Command" : msg.sender?.name || "Unknown Volunteer",
+          sender_name: msg.sender_type === "dma" ? "DMA Command" : senderNames[msg.sender_id || ""] || "Unknown Volunteer",
         }));
 
         return NextResponse.json(messagesWithSender);
@@ -65,10 +79,7 @@ export async function GET(request: Request) {
     if (channelType === "direct" && channelId) {
       const { data: messages, error } = await supabase
         .from("message")
-        .select(`
-          *,
-          sender:volunteer(id, name, type)
-        `)
+        .select("*")
         .or(`receiver_id.eq.${channelId},sender_id.eq.${channelId}`)
         .is("task_force_id", null)
         .is("victim_report_id", null)
@@ -77,9 +88,26 @@ export async function GET(request: Request) {
       if (error) throw error;
 
       if (messages && messages.length > 0) {
+        const senderIds = [...new Set(messages.filter(m => m.sender_id && m.sender_type !== 'dma').map(m => m.sender_id))];
+        let senderNames: Record<string, string> = {};
+
+        if (senderIds.length > 0) {
+          const { data: volunteers } = await supabase
+            .from("volunteer")
+            .select("id, name")
+            .in("id", senderIds);
+
+          if (volunteers) {
+            senderNames = volunteers.reduce((acc, v) => {
+              acc[v.id] = v.name;
+              return acc;
+            }, {} as Record<string, string>);
+          }
+        }
+
         const messagesWithSender = messages.map((msg) => ({
           ...msg,
-          sender_name: msg.sender_type === "dma" ? "DMA Command" : msg.sender?.name || "Unknown",
+          sender_name: msg.sender_type === "dma" ? "DMA Command" : senderNames[msg.sender_id || ""] || "Unknown",
         }));
 
         return NextResponse.json(messagesWithSender);
@@ -96,7 +124,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   try {
     const body = await request.json();

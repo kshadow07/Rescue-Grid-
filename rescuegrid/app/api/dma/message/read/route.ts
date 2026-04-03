@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { NextResponse } from "next/server";
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   try {
     const body = await request.json();

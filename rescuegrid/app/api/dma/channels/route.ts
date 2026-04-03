@@ -1,10 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const supabase = await createClient();
-
   try {
+    const supabase = createServiceClient();
+
+    console.log("Channels API: Starting fetch...");
+
     const channels: Array<{
       id: string;
       type: "victim_thread" | "taskforce_room" | "direct";
@@ -16,6 +18,7 @@ export async function GET() {
       is_flagged: boolean;
     }> = [];
 
+    // Fetch victim reports
     const { data: victimReports, error: vrError } = await supabase
       .from("victim_report")
       .select("id, phone_no, situation, city, district, created_at")
@@ -23,8 +26,11 @@ export async function GET() {
       .limit(20);
 
     if (vrError) {
-      console.error("Error fetching victim reports:", vrError);
+      console.error("Channels API: Error fetching victim reports:", vrError);
+      return NextResponse.json({ error: "Failed to fetch victim reports", details: vrError.message }, { status: 500 });
     }
+
+    console.log("Channels API: victimReports count:", victimReports?.length || 0);
 
     if (victimReports && victimReports.length > 0) {
       for (const vr of victimReports) {
@@ -68,6 +74,7 @@ export async function GET() {
       }
     }
 
+    // Fetch task forces
     const { data: taskForces, error: tfError } = await supabase
       .from("task_force")
       .select("id, name, status")
@@ -75,8 +82,11 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (tfError) {
-      console.error("Error fetching task forces:", tfError);
+      console.error("Channels API: Error fetching task forces:", tfError);
+      return NextResponse.json({ error: "Failed to fetch task forces", details: tfError.message }, { status: 500 });
     }
+
+    console.log("Channels API: taskForces count:", taskForces?.length || 0);
 
     if (taskForces && taskForces.length > 0) {
       for (const tf of taskForces) {
@@ -125,6 +135,7 @@ export async function GET() {
       }
     }
 
+    // Fetch volunteers
     const { data: volunteers, error: volError } = await supabase
       .from("volunteer")
       .select("id, name, type, status")
@@ -132,8 +143,11 @@ export async function GET() {
       .limit(20);
 
     if (volError) {
-      console.error("Error fetching volunteers:", volError);
+      console.error("Channels API: Error fetching volunteers:", volError);
+      return NextResponse.json({ error: "Failed to fetch volunteers", details: volError.message }, { status: 500 });
     }
+
+    console.log("Channels API: volunteers count:", volunteers?.length || 0);
 
     if (volunteers && volunteers.length > 0) {
       for (const vol of volunteers) {
@@ -180,6 +194,7 @@ export async function GET() {
       }
     }
 
+    // Sort channels: flagged first, then unread, then by time
     channels.sort((a, b) => {
       if (a.is_flagged && !b.is_flagged) return -1;
       if (!a.is_flagged && b.is_flagged) return 1;
@@ -190,9 +205,11 @@ export async function GET() {
       return timeB - timeA;
     });
 
+    console.log("Channels API: Returning", channels.length, "channels");
+
     return NextResponse.json(channels);
   } catch (error) {
-    console.error("Error fetching channels:", error);
-    return NextResponse.json({ error: "Failed to fetch channels" }, { status: 500 });
+    console.error("Channels API: Unexpected error:", error);
+    return NextResponse.json({ error: "Failed to fetch channels", details: String(error) }, { status: 500 });
   }
 }
