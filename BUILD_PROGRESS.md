@@ -1,8 +1,8 @@
 # RescueGrid — Build Progress
 
-**Last Updated:** 2026-04-03T17:20:00+05:30
-**Current Phase:** Phase 2 — COMPLETE ✅ (REFACTORED)
-**Status:** Ready for Phase 3 (Victim Report Flow)
+**Last Updated:** 2026-04-03T18:00:00+05:30
+**Current Phase:** Phase 3 — COMPLETE ✅
+**Status:** Ready for Phase 4 (DMA Dashboard Core)
 
 ---
 
@@ -99,33 +99,86 @@
 
 ---
 
+## Phase 3 — Victim Report Flow ✅ COMPLETE
+
+### 3.1 Victim Home Screen (`/`) ✅ COMPLETE
+- [x] Dark screen, `RESCUEGRID` logo centered top — RESCUE white / GRID orange, Barlow Condensed 700
+- [x] Bilingual subtitle: "Report Emergency / आपातकाल रिपोर्ट करें" in muted Barlow
+- [x] 2×3 grid of situation cards: Food · Water · Medical · Rescue · Shelter · Missing
+- [x] Each card: angular clip-path on `--bg2`, colored left border by situation type
+- [x] Icon, English label Barlow Condensed 18px 700 UPPERCASE, Hindi label Barlow 13px muted
+- [x] Card tap → navigate to `/report/[type]`
+- [x] Sticky bottom: `📞 HELPLINE: 1070` full-width primary Button (`href="tel:1070"`)
+- [x] SOS badge in top-right of logo
+- [x] "My Reports" link to `/report/my`
+
+### 3.2 Report Form (`/report/[type]`) ✅ COMPLETE
+- [x] Back arrow top-left → `/`
+- [x] Mapbox GL JS map, 160px tall, dark style, draggable pin initialized at browser GPS
+- [x] `↻ USE CURRENT LOCATION` ghost Button → calls `geolocation.getCurrentPosition()`
+- [x] Detected place name below map in JetBrains Mono 11px dim
+- [x] **People Affected** number input — how many people need help (included in message)
+- [x] Phone `InputField` — `inputmode="tel"`, required
+- [x] Optional message textarea — max 280 chars, character counter in Mono dim bottom-right
+- [x] `SEND REPORT →` primary Button, full width — disabled while phone empty, spinner on submit
+- [x] On submit: POST to `/api/victim/report` → on success navigate to `/report/status/[new_id]`
+- [x] Situation-specific placeholder text for message field
+
+### 3.3 API Route — Create Report ✅ COMPLETE
+- [x] `POST /api/victim/report`
+- [x] Validate: `phone_no`, `latitude`, `longitude`, `situation` required — 400 if missing
+- [x] Call Mapbox Reverse Geocoding to get city and district
+- [x] Insert into `victim_report` with service role client
+- [x] Return `{ id }` with status 201
+
+### 3.4 Report Status Screen ✅ COMPLETE
+- [x] Fetch report on load by `id`
+- [x] Display: `REPORT #KL-{YEAR}-{XXXX}`, situation badge, urgency badge
+- [x] Live status badge — updates via Supabase Realtime on `victim_report WHERE id = [id]`
+- [x] Message thread: DMA messages right-aligned (orange-dim), victim messages left-aligned (bg3)
+- [x] Sender label + timestamp in JetBrains Mono 10px dim
+- [x] Message input + `SEND →` → POST `/api/victim/message`
+- [x] New DMA messages appear live via Realtime on `message WHERE victim_report_id = [id]`
+- [x] Sticky bottom: `📞 CALL HELPLINE: 1070` primary Button
+
+### 3.5 My Reports Page (`/report/my`) ✅ COMPLETE
+- [x] "My Reports" from home → `/report/my`
+- [x] Enter phone number → fetches all reports from `victim_report` where `phone_no` matches
+- [x] No localStorage — DB is source of truth, real-time updates work automatically
+- [x] Displays report cards with situation (colored border), status badge, city, timestamp
+- [x] Tap card → navigates to `/report/status/[id]`
+- [x] "New Report" button at bottom
+
+---
+
 ## Verification Required
 
-**Please verify Phase 2 by:**
+**Please verify Phase 3 by:**
 
-### DMA Login Test:
-1. Navigate to `/dma/login`
-2. You need a DMA user created in Supabase Auth dashboard (email + password)
-3. Enter credentials → should redirect to `/dma/dashboard`
-4. Clear session → access `/dma/dashboard` → should redirect back to `/dma/login`
-
-### Volunteer Login Test:
-1. Navigate to `/volunteer/login`
-2. Enter a phone number from your seed data (e.g., `+919988776600` — Arjun Singh)
-3. Click "LOGIN →" → should redirect to `/volunteer/missions`
-4. Clear `volunteer_session` cookie → access `/volunteer/missions` → should redirect to `/volunteer/login`
-
-**Note:** You must create at least one DMA user in Supabase Auth (Authentication → Add User → Email + Password) before testing DMA login.
+### Full Victim Flow Test:
+1. Navigate to `http://localhost:3000/` — victim home screen
+2. Tap any situation card (e.g., "Rescue") → navigates to `/report/rescue`
+3. Wait for GPS to locate (or tap "Use current location")
+4. Confirm map shows with draggable orange pin
+5. Enter phone number
+6. (Optional) Enter a message
+7. Tap "SEND REPORT →"
+8. Should navigate to `/report/status/[uuid]`
+9. Confirm report ID, situation badge, urgency badge, status badge all display
+10. (If DMA replies exist in DB) — DMA messages appear on right (orange-dim)
+11. Type a message in input → tap SEND → appears on left (bg3)
+12. Sticky "Call Helpline: 1070" button at bottom
 
 ---
 
 ## Next Phase
 
-**Phase 3: Victim Report Flow**
-- 3.1: Victim Home Screen (`/`) — 2×3 situation card grid
-- 3.2: Report Form (`/report/[type]`) — Mapbox map + GPS + phone input
-- 3.3: API Route — Create Report (`POST /api/victim/report`)
-- 3.4: Report Status Screen (`/report/status/[id]`) — live status + message thread
+**Phase 4: DMA Dashboard Core**
+- 4.1: Dashboard Layout (`/dma/dashboard`) — three-column fixed layout
+- 4.2: Topbar — logo, nav tabs, live counters, session timer, buttons
+- 4.3: Mapbox Map (center) — victim pins, volunteer markers, layer toggles
+- 4.4: Left Sidebar — filters + resource summary
+- 4.5: Right Sidebar — mission control + responders list
 
 ---
 
@@ -144,11 +197,13 @@
   - No Twilio/SMS dependency
   - Validates phone against `volunteer.mobile_no` in DB
   - Cookie is httpOnly, secure in production, 7-day expiry
-  - **⚠️ Future:** When ready for real OTP, enable Twilio in Supabase Dashboard → Authentication → Providers → Phone. The flow can be switched to `supabase.auth.signInWithOtp()` + `supabase.auth.verifyOtp()` without major code changes.
+  - **⚠️ Future:** When ready for real OTP, enable Twilio in Supabase Dashboard → Authentication → Providers → Phone.
 
 ### New/Updated Files
-- `app/(dma)/dma/login/page.tsx` — DMA login with password toggle
-- `app/(volunteer)/volunteer/login/page.tsx` — Single-step demo login
-- `app/api/volunteer/login/route.ts` — NEW: Demo mode API (validates phone, sets cookie)
-- `lib/auth/getVolunteer.ts` — Updated for cookie-based volunteer session
-- `middleware.ts` — Updated to check `volunteer_session` cookie for volunteer routes
+- `app/(victim)/page.tsx` — Victim home screen with 2×3 situation card grid
+- `app/(victim)/report/[type]/page.tsx` — Report form with Mapbox GPS
+- `app/(victim)/report/status/[id]/page.tsx` — Report status + live message thread
+- `app/api/victim/report/route.ts` — POST: validate, reverse geocode, insert victim_report
+- `app/api/victim/message/route.ts` — POST: insert message as victim sender
+- `lib/supabase/service.ts` — Service role client for server-side DB operations
+- `app/layout.tsx` — Added `suppressHydrationWarning` to body for browser extension compatibility
