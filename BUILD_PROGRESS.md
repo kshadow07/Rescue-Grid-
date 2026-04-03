@@ -1,6 +1,6 @@
 # RescueGrid — Build Progress
 
-**Last Updated:** 2026-04-04T00:06:00+05:30
+**Last Updated:** 2026-04-04T00:20:00+05:30
 **Current Phase:** Phase 7 — COMPLETE ✅ (Post-Polish Fixes)
 **Status:** Ready for Phase 8 (DMA Messaging Hub)
 
@@ -12,6 +12,19 @@
 - [x] **Chat input bar missing** — Added `z-50` and safe-area-inset-bottom padding to fixed input bar
 - [x] **Tasks/Active tab routing bug** — Fixed `isActive()` function to do exact pathname matching instead of incorrectly highlighting both tabs
 - [x] **Map WebGL container warning** — Added check for childNodes.length > 0 before initializing map
+- [x] **Volunteer layout missing** — Recreated `app/(volunteer)/layout.tsx` with status bar, active mission strip, and bottom nav
+- [x] **Missing Volunteer API routes** — Created all 6 missing volunteer API routes:
+  - `GET /api/volunteer/assignment` — get active assignment
+  - `GET /api/volunteer/assignment/queue` — queue assignments
+  - `GET /api/volunteer/assignment/history` — completed/failed assignments
+  - `GET /api/volunteer/assignment/active` — active assignment
+  - `PATCH /api/volunteer/assignment/[id]` — update status
+  - `PATCH /api/volunteer/location` — update GPS coordinates
+  - `GET/POST /api/volunteer/message` — fetch/send TF messages
+  - `PATCH /api/volunteer/message/[id]/flag` — flag message
+  - `PATCH /api/volunteer/status` — toggle availability
+  - `POST /api/volunteer/push-token` — register push subscription
+  - `GET /api/volunteer/me` — volunteer profile
 
 ---
 
