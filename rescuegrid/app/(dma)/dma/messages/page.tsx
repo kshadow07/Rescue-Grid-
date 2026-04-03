@@ -72,7 +72,7 @@ function MessagesContent() {
   const [activeTab, setActiveTab] = useState<"victim" | "volunteer" | "taskforce">("victim");
   const [tfMembers, setTfMembers] = useState<TFMember[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const hasClickedChannel = useRef(false);
+  const messagePanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -180,8 +180,8 @@ function MessagesContent() {
   }, [activeChannel, fetchMessages, fetchChannelData, fetchTfMembers, markAsRead]);
 
   useEffect(() => {
-    if (!hasClickedChannel.current && messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > 0 && messagePanelRef.current) {
+      messagePanelRef.current.scrollTop = messagePanelRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -242,10 +242,14 @@ function MessagesContent() {
   }, [supabase, activeChannel, fetchChannels, fetchMessages]);
 
   const handleChannelClick = (channel: Channel) => {
-    hasClickedChannel.current = true;
+    if (activeChannel?.id === channel.id && activeChannel?.type === channel.type) return;
     setActiveChannel(channel);
     setTfMembers([]);
     setMessages([]);
+    setActiveChannelData(null);
+    if (messagePanelRef.current) {
+      messagePanelRef.current.scrollTop = 0;
+    }
   };
 
   const handleSendMessage = async () => {
@@ -267,7 +271,6 @@ function MessagesContent() {
 
       if (res.ok) {
         setNewMessage("");
-        hasClickedChannel.current = false;
         fetchMessages();
         fetchChannels();
       }
@@ -441,9 +444,14 @@ function MessagesContent() {
                         }`}>
                           {getInitials(channel.label)}
                         </div>
-                        <span className="font-display text-[11px] font-semibold text-ink uppercase truncate">
-                          {channel.label}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="font-display text-[11px] font-semibold text-ink uppercase truncate">
+                            {channel.label}
+                          </span>
+                          {channel.type === "direct" && (
+                            <span className="font-mono text-[7px] text-orange uppercase tracking-wider">Volunteer</span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         {channel.is_flagged && (
@@ -497,9 +505,9 @@ function MessagesContent() {
           {activeChannel ? (
             <>
               {/* Thread Header */}
-              <div className="p-4 bg-surface-1 border-b border-border-dim">
+              <div className="p-4 bg-surface-1 border-b border-border-dim shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded flex items-center justify-center font-display text-[14px] font-bold ${
+                  <div className={`w-12 h-12 rounded flex items-center justify-center font-display text-[14px] font-bold shrink-0 ${
                     activeChannel.type === "victim_thread" ? "bg-alert/20 text-alert" :
                     activeChannel.type === "taskforce_room" ? "bg-ops/20 text-ops" :
                     "bg-orange/20 text-orange"
@@ -516,7 +524,7 @@ function MessagesContent() {
                   </div>
                   
                   {activeChannelData && (
-                    <div className="flex flex-col items-end gap-1">
+                    <div className="flex flex-col items-end gap-1 shrink-0">
                       <div className="flex items-center gap-2">
                         <span className={`font-mono text-[9px] uppercase px-2 py-1 rounded ${getUrgencyColor(activeChannelData.urgency)}`}>
                           {activeChannelData.urgency}
@@ -533,42 +541,53 @@ function MessagesContent() {
                       </p>
                     </div>
                   )}
-                </div>
 
-                {/* TF Members Panel */}
-                {activeChannel.type === "taskforce_room" && tfMembers.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-border-dim">
-                    <p className="font-mono text-[9px] text-dim uppercase tracking-wider mb-2">Team Members</p>
-                    <div className="flex flex-wrap gap-2">
-                      {tfMembers.map((member) => (
-                        <div
-                          key={member.id}
-                          className="flex items-center gap-2 bg-surface-2 px-2 py-1"
-                          style={{ clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%)' }}
-                        >
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold ${
-                            member.status === 'active' ? 'bg-ops/20 text-ops' : 'bg-surface-3 text-dim'
-                          }`}>
-                            {getInitials(member.name)}
-                          </div>
-                          <div>
-                            <span className="font-body text-[11px] text-ink">{member.name}</span>
-                            <span className={`font-mono text-[7px] px-1 py-0.5 ml-1 uppercase ${getTypeBadgeColor(member.type)}`}>
-                              {member.type?.slice(0, 3)}
-                            </span>
-                          </div>
-                          {member.mobile_no && (
-                            <span className="font-mono text-[8px] text-dim">{member.mobile_no}</span>
-                          )}
-                        </div>
-                      ))}
+                  {activeChannel.type === "direct" && activeChannel.phone_no && (
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={`font-mono text-[9px] uppercase px-2 py-1 rounded ${getTypeBadgeColor(activeChannel.subtitle?.split('·')[0]?.trim() || '')}`}>
+                        Volunteer
+                      </span>
+                      <p className="font-mono text-[9px] text-muted">
+                        📞 {activeChannel.phone_no}
+                      </p>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
+              {/* TF Members Panel - Separate from header to prevent layout shift */}
+              {activeChannel.type === "taskforce_room" && tfMembers.length > 0 && (
+                <div className="bg-surface-2 border-b border-border-dim p-3 shrink-0">
+                  <p className="font-mono text-[9px] text-dim uppercase tracking-wider mb-2">👥 Team Members ({tfMembers.length})</p>
+                  <div className="flex flex-wrap gap-2">
+                    {tfMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center gap-2 bg-surface-1 px-2 py-1.5"
+                        style={{ clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%)' }}
+                      >
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${
+                          member.status === 'active' ? 'bg-ops/20 text-ops' : 'bg-surface-3 text-dim'
+                        }`}>
+                          {getInitials(member.name)}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-body text-[11px] text-ink block truncate max-w-[80px]">{member.name}</span>
+                          <span className={`font-mono text-[7px] px-1 py-0.5 uppercase ${getTypeBadgeColor(member.type)}`}>
+                            {member.type?.slice(0, 3)}
+                          </span>
+                        </div>
+                        {member.mobile_no && (
+                          <span className="font-mono text-[8px] text-dim shrink-0">{member.mobile_no}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-1">
+              <div ref={messagePanelRef} className="flex-1 overflow-y-auto p-4 space-y-1">
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full">
                     <div className="w-16 h-16 bg-surface-2 rounded-full flex items-center justify-center mb-4">

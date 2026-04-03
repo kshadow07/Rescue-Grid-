@@ -99,6 +99,7 @@ CREATE POLICY "service_role_all_task_force_member" ON task_force_member
 -- MESSAGE policies
 
 -- Victim: SELECT messages for their own report thread (no auth needed)
+DROP POLICY IF EXISTS "anon_select_message_victim_thread" ON message;
 CREATE POLICY "anon_select_message_victim_thread" ON message
   FOR SELECT TO anon
   USING (victim_report_id IS NOT NULL);

@@ -26,6 +26,8 @@ export interface Message {
   is_private: boolean;
 }
 
+const MAX_MESSAGES = 200;
+
 function getInitials(name: string): string {
   return name
     .split(' ')
@@ -73,6 +75,7 @@ export function useMessages(channel: ChannelType, currentUserId: string) {
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const supabase = createClient();
+  const isInitializedRef = useRef(false);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -85,7 +88,8 @@ export function useMessages(channel: ChannelType, currentUserId: string) {
           *,
           sender_name:volunteer!sender_id(name)
         `)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        .limit(MAX_MESSAGES);
 
       if (channel.type === 'taskforce') {
         query = query
@@ -115,6 +119,7 @@ export function useMessages(channel: ChannelType, currentUserId: string) {
       setError('Failed to load messages');
     } finally {
       setLoading(false);
+      isInitializedRef.current = true;
     }
   }, [channel, currentUserId, supabase]);
 
@@ -198,7 +203,11 @@ export function useMessages(channel: ChannelType, currentUserId: string) {
 
         setMessages(prev => {
           const withoutOptimistic = prev.filter(m => !m.id.startsWith('temp-'));
-          return [...withoutOptimistic, enrichMessage(data as Record<string, unknown>, currentUserId)];
+          const newMsg = enrichMessage(data as Record<string, unknown>, currentUserId);
+          if (withoutOptimistic.find(m => m.id === newMsg.id)) {
+            return withoutOptimistic;
+          }
+          return [...withoutOptimistic, newMsg];
         });
       } catch (err) {
         console.error('Error sending message:', err);
@@ -210,17 +219,13 @@ export function useMessages(channel: ChannelType, currentUserId: string) {
   );
 
   useEffect(() => {
+    isInitializedRef.current = false;
     fetchMessages();
     markAsRead();
   }, [fetchMessages, markAsRead]);
 
   useEffect(() => {
-    const channelKey =
-      channel.type === 'taskforce'
-        ? `taskforce:${channel.taskForceId}`
-        : channel.type === 'victim_thread'
-        ? `victim:${channel.victimReportId}`
-        : `direct:${[currentUserId, channel.otherUserId].sort().join(':')}`;
+    if (!isInitializedRef.current) return;
 
     let filter: string;
     if (channel.type === 'taskforce') {
@@ -229,6 +234,17 @@ export function useMessages(channel: ChannelType, currentUserId: string) {
       filter = `victim_report_id=eq.${channel.victimReportId}`;
     } else {
       filter = `receiver_id=eq.${currentUserId}`;
+    }
+
+    const channelKey =
+      channel.type === 'taskforce'
+        ? `use-messages-taskforce:${channel.taskForceId}`
+        : channel.type === 'victim_thread'
+        ? `use-messages-victim:${channel.victimReportId}`
+        : `use-messages-direct:${currentUserId}`;
+
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
     }
 
     channelRef.current = supabase
@@ -241,18 +257,35 @@ export function useMessages(channel: ChannelType, currentUserId: string) {
           table: 'message',
           filter,
         },
-        async (payload) => {
+        (payload) => {
           const newMsg = payload.new as Record<string, unknown>;
+          
           setMessages(prev => {
             if (prev.find(m => m.id === newMsg.id)) return prev;
             if (newMsg.sender_id === currentUserId) return prev;
-            const { data } = supabase
-              .from('message')
-              .select(`*, sender_name:volunteer!sender_id(name)`)
-              .eq('id', newMsg.id)
-              .single();
-            return prev;
+            
+            const enriched = enrichMessage(newMsg, currentUserId);
+            const updated = [...prev, enriched];
+            if (updated.length > MAX_MESSAGES) {
+              return updated.slice(-MAX_MESSAGES);
+            }
+            return updated;
           });
+        }
+      )
+      .on(
+        'postgres_changes' as const,
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'message',
+          filter,
+        },
+        (payload) => {
+          const updatedMsg = payload.new as Record<string, unknown>;
+          setMessages(prev =>
+            prev.map(m => m.id === updatedMsg.id ? enrichMessage(updatedMsg, currentUserId) : m)
+          );
         }
       )
       .subscribe();
@@ -260,6 +293,7 @@ export function useMessages(channel: ChannelType, currentUserId: string) {
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
     };
   }, [channel, currentUserId, supabase]);
@@ -271,5 +305,6 @@ export function useMessages(channel: ChannelType, currentUserId: string) {
     sendMessage,
     markAsRead,
     formatTime,
+    refetch: fetchMessages,
   };
 }

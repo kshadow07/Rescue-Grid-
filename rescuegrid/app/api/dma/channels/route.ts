@@ -16,6 +16,7 @@ export async function GET() {
       last_message_time?: string;
       unread_count: number;
       is_flagged: boolean;
+      phone_no?: string;
     }> = [];
 
     // Fetch victim reports
@@ -138,7 +139,7 @@ export async function GET() {
     // Fetch volunteers
     const { data: volunteers, error: volError } = await supabase
       .from("volunteer")
-      .select("id, name, type, status")
+      .select("id, name, type, status, mobile_no")
       .order("name", { ascending: true })
       .limit(20);
 
@@ -190,6 +191,7 @@ export async function GET() {
           last_message_time: lastMessage?.created_at,
           unread_count: unreadCount,
           is_flagged: isFlagged,
+          phone_no: vol.mobile_no,
         });
       }
     }
