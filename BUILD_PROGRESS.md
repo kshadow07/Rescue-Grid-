@@ -1,8 +1,8 @@
 # RescueGrid — Build Progress
 
-**Last Updated:** 2026-04-03T18:00:00+05:30
-**Current Phase:** Phase 3 — COMPLETE ✅
-**Status:** Ready for Phase 4 (DMA Dashboard Core)
+**Last Updated:** 2026-04-03T20:25:00+05:30
+**Current Phase:** Phase 4.1–4.5 — COMPLETE ✅
+**Status:** Ready for Phase 5 (Assignment System)
 
 ---
 
@@ -151,34 +151,88 @@
 
 ---
 
+## Phase 4 — DMA Dashboard Core ✅ COMPLETE
+
+### 4.1 Dashboard Layout (`/dma/dashboard`) ✅
+- [x] Three-column fixed layout: Left 260px | Center flex-1 | Right 320px
+- [x] No full-page scroll, each column scrolls independently
+- [x] Topbar 52px fixed at top
+
+### 4.2 Topbar ✅
+- [x] `RESCUE` (white) `GRID` (orange) logo, Barlow Condensed 20px 700
+- [x] Nav tabs: Dashboard · Deployments · Resources · Broadcast · Messages
+- [x] Active tab: orange text + 2px orange bottom border
+- [x] Live counters: CRITICAL (red), ACTIVE (orange), VOLS (white)
+- [x] Session timer: live ticking from login, green Mono text
+- [x] `+ CREATE TASK` primary small Button
+- [x] `EMERGENCY BROADCAST` danger small Button
+- [x] Logout button
+
+### 4.3 Mapbox Map (center) ✅
+- [x] Dark map (`mapbox://styles/mapbox/dark-v11`) with satellite toggle
+- [x] Victim report pins: colored by situation, sized by urgency, pulsing for critical/open
+- [x] Click pin → popup with report details
+- [x] Volunteer lettered avatar markers with status dot (green/orange/gray)
+- [x] Layer toggles: Need Pins, Volunteer Locations, Relief Camps, Nearby Hospitals
+- [x] District filter integration
+
+### 4.4 Left Sidebar ✅
+- [x] Situation type filter chips (Food/Water/Medical/Rescue/Shelter/Missing)
+- [x] Urgency level toggles (Critical/Urgent/Moderate)
+- [x] District dropdown filter
+- [x] Map layer toggles
+- [x] Resource summary cards with inline quantity editing
+- [x] Color-coded stock bars (green >60%, amber 30-60%, red below threshold)
+- [x] LOW STOCK badge when quantity < threshold
+
+### 4.5 Right Sidebar ✅
+- [x] Mission Control: Queue/Active/Duplicate/Done counters
+- [x] Selected report panel with CALL and ASSIGN buttons
+- [x] Live Responders list: name, type, skills, status badge, last_seen
+- [x] Sorted: On Mission → Ready → Offline
+
+### API Routes Created
+- [x] `GET /api/dma/counters` — critical, active, vols counts
+- [x] `GET /api/dma/assignment/counts` — queue/active/duplicate/done
+- [x] `GET /api/volunteer/list` — all volunteers
+- [x] `GET /api/volunteer/locations` — volunteers with lat/lng
+- [x] `GET /api/dma/resource/list` — all resources
+- [x] `GET /api/victim/reports` — all reports (updated to return array)
+
+### Components Created
+- [x] `components/dma/Topbar.tsx`
+- [x] `components/dma/LeftSidebar.tsx`
+- [x] `components/dma/RightSidebar.tsx`
+- [x] `components/dma/MapboxMap.tsx`
+
+---
+
 ## Verification Required
 
-**Please verify Phase 3 by:**
+**Please verify Phase 4 by:**
 
-### Full Victim Flow Test:
-1. Navigate to `http://localhost:3000/` — victim home screen
-2. Tap any situation card (e.g., "Rescue") → navigates to `/report/rescue`
-3. Wait for GPS to locate (or tap "Use current location")
-4. Confirm map shows with draggable orange pin
-5. Enter phone number
-6. (Optional) Enter a message
-7. Tap "SEND REPORT →"
-8. Should navigate to `/report/status/[uuid]`
-9. Confirm report ID, situation badge, urgency badge, status badge all display
-10. (If DMA replies exist in DB) — DMA messages appear on right (orange-dim)
-11. Type a message in input → tap SEND → appears on left (bg3)
-12. Sticky "Call Helpline: 1070" button at bottom
+### DMA Dashboard Test:
+1. Navigate to `http://localhost:3000/dma/login` — DMA login page
+2. Log in with DMA credentials (email/password)
+3. Should redirect to `/dma/dashboard`
+4. Confirm three-column layout: left sidebar (260px) | center map | right sidebar (320px)
+5. Topbar shows: logo, nav tabs, live counters, session timer, CREATE TASK + BROADCAST buttons
+6. Map loads with victim report pins (seed data)
+7. Left sidebar: situation filters, urgency toggles, resource summary cards
+8. Right sidebar: Mission Control counters, Responders list
+9. Click a victim pin → report details in right sidebar
+10. Satellite toggle button works (dark ↔ satellite)
+11. Filters update map pins when toggled
 
 ---
 
 ## Next Phase
 
-**Phase 4: DMA Dashboard Core**
-- 4.1: Dashboard Layout (`/dma/dashboard`) — three-column fixed layout
-- 4.2: Topbar — logo, nav tabs, live counters, session timer, buttons
-- 4.3: Mapbox Map (center) — victim pins, volunteer markers, layer toggles
-- 4.4: Left Sidebar — filters + resource summary
-- 4.5: Right Sidebar — mission control + responders list
+**Phase 5: Assignment System**
+- 5.1: Create Assignment Modal with Mapbox SearchBox location
+- 5.2: API Route — Create Assignment with push notifications
+- 5.3: Assignments List (`/dma/assignments`)
+- 5.4: API Route — Update Assignment Status
 
 ---
 
@@ -207,3 +261,13 @@
 - `app/api/victim/message/route.ts` — POST: insert message as victim sender
 - `lib/supabase/service.ts` — Service role client for server-side DB operations
 - `app/layout.tsx` — Added `suppressHydrationWarning` to body for browser extension compatibility
+- `components/dma/Topbar.tsx` — DMA topbar with logo, nav, counters, session timer
+- `components/dma/LeftSidebar.tsx` — Filters + resource summary
+- `components/dma/RightSidebar.tsx` — Mission control + responders
+- `components/dma/MapboxMap.tsx` — Full Mapbox GL JS map component
+- `app/(dma)/dma/dashboard/page.tsx` — Main DMA dashboard page
+- `app/api/dma/counters/route.ts` — Live counter API
+- `app/api/dma/assignment/counts/route.ts` — Assignment status counts
+- `app/api/volunteer/list/route.ts` — Volunteer list
+- `app/api/volunteer/locations/route.ts` — Volunteer locations for map
+- `app/api/dma/resource/list/route.ts` — Resource list
