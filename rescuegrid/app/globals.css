@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+:root {
+  /* Dark Theme - UI PRD §3 */
+  --bg0: #07080A;
+  --bg1: #0D0F12;
+  --bg2: #13161B;
+  --bg3: #1A1E25;
+  --bg4: #222830;
+  --orange: #FF6B2B;
+  --orange-dim: rgba(255, 107, 43, 0.12);
+  --orange-glow: rgba(255, 107, 43, 0.25);
+  --red-alert: #FF3B3B;
+  --green-ok: #2ECC71;
+  --blue-accent: #3B8BFF;
+  --amber: #F5A623;
+  --text-primary: #F0EDE8;
+  --text-secondary: #8A8F99;
+  --text-dim: #4A505C;
+  --border: rgba(255, 107, 43, 0.15);
+  --border-dim: rgba(255, 255, 255, 0.06);
+
+  /* Font families */
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-body: 'Barlow', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+@theme inline {
+  /* Colors - UI PRD §13 */
+  --color-void: var(--bg0);
+  --color-surface-1: var(--bg1);
+  --color-surface-2: var(--bg2);
+  --color-surface-3: var(--bg3);
+  --color-surface-4: var(--bg4);
+  --color-orange: var(--orange);
+  --color-orange-dim: var(--orange-dim);
+  --color-orange-glow: var(--orange-glow);
+  --color-alert: var(--red-alert);
+  --color-ops: var(--green-ok);
+  --color-intel: var(--blue-accent);
+  --color-caution: var(--amber);
+  --color-ink: var(--text-primary);
+  --color-muted: var(--text-secondary);
+  --color-dim: var(--text-dim);
+
+  /* Fonts */
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+
+  /* Clip path utilities */
+  --clip-tactical: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  --clip-tactical-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--bg0);
+    --foreground: var(--text-primary);
+  }
+}
+
+body {
+  background: var(--bg0);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+/* Angular clip-path buttons */
+.btn-tactical {
+  clip-path: var(--clip-tactical);
+}
+
+.btn-tactical-sm {
+  clip-path: var(--clip-tactical-sm);
+}
