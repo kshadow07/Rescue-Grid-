@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Button from '@/components/ui/Button';
+import { createClient } from '@/lib/supabase/client';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface Message {
   id: string;
@@ -34,6 +36,8 @@ export default function TaskForceChatPage() {
   const router = useRouter();
   const params = useParams();
   const taskforceId = params.taskforce_id as string;
+  const supabase = createClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const [taskForce, setTaskForce] = useState<TaskForce | null>(null);
   const [members, setMembers] = useState<TFMember[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -87,9 +91,28 @@ export default function TaskForceChatPage() {
   }, [taskforceId, fetchMessages]);
 
   useEffect(() => {
-    const interval = setInterval(fetchMessages, 5000);
-    return () => clearInterval(interval);
-  }, [fetchMessages]);
+    channelRef.current = supabase
+      .channel(`tf-messages-${taskforceId}`)
+      .on(
+        'postgres_changes' as const,
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'message',
+          filter: `task_force_id=eq.${taskforceId}`,
+        },
+        () => {
+          fetchMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
+  }, [taskforceId, supabase, fetchMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

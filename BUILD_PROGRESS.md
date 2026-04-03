@@ -1,12 +1,91 @@
 # RescueGrid — Build Progress
 
-**Last Updated:** 2026-04-04T00:20:00+05:30
-**Current Phase:** Phase 7 — COMPLETE ✅ (Post-Polish Fixes)
-**Status:** Ready for Phase 8 (DMA Messaging Hub)
+**Last Updated:** 2026-04-04T01:05:00+05:30
+**Current Phase:** Phase 7.5 — COMPLETE ✅
+**Next Phase:** Phase 9 (Broadcast + Resource Management)
+**Status:** Real-time subscriptions implemented. Build passes. Ready for Phase 9.
 
 ---
 
-## Phase 7 — Post-Polish Fixes (2026-04-04)
+## ✅ REAL-TIME ISSUE RESOLVED
+
+**What was fixed:** All polling (setInterval) has been replaced with proper Supabase `channel.subscribe()` using `postgres_changes` events. The UI now updates IMMEDIATELY when data changes in the database - no page refresh needed.
+
+**Pages now using real-time subscriptions:**
+- `app/(victim)/report/status/[id]/page.tsx` — victim report + messages (already had it)
+- `app/(volunteer)/volunteer/missions/page.tsx` — new assignment notifications
+- `app/(volunteer)/volunteer/chat/[taskforce_id]/page.tsx` — new chat messages
+- `app/(volunteer)/layout.tsx` — active mission strip + pending count
+- `components/dma/Topbar.tsx` — live counters (critical/active/vols)
+- `app/(dma)/dma/messages/page.tsx` — all channel updates + flag notifications
+
+---
+
+## Phase 7.5 — Real-Time Subscription Fixes (2026-04-04) ✅ COMPLETE
+
+### Issues Fixed:
+- [x] **Volunteer missions page** — Replaced 15s polling with `assignment` table subscription (INSERT/UPDATE)
+- [x] **Volunteer chat page** — Replaced 5s polling with `message` table subscription (INSERT)
+- [x] **Volunteer layout** — Replaced 15s polling with `assignment` table subscription for active mission strip
+- [x] **DMA Topbar** — Replaced 5s polling with subscriptions on `victim_report`, `assignment`, `volunteer` tables
+- [x] **Created lib/realtime.ts** — Shared utility for managing real-time subscriptions
+- [x] **DMA Messages page** — Implemented full messaging hub with all 5 channel types
+- [x] **Created /api/dma/channels** — API to list all DMA message channels
+- [x] **Created /api/dma/message** — API for DMA to send messages in any channel
+
+### Files Updated:
+- `lib/realtime.ts` — Real-time subscription utilities
+- `app/(volunteer)/volunteer/missions/page.tsx` — Real-time assignment subscription
+- `app/(volunteer)/volunteer/chat/[taskforce_id]/page.tsx` — Real-time message subscription
+- `app/(volunteer)/layout.tsx` — Real-time active mission strip
+- `components/dma/Topbar.tsx` — Real-time counter subscriptions
+- `app/(dma)/dma/messages/page.tsx` — Full DMA messaging hub (all 5 channel types)
+- `app/api/dma/channels/route.ts` — Channel list API
+- `app/api/dma/message/route.ts` — DMA message send/fetch API
+
+### Real-Time Subscription Pattern (from victim report status page):
+```typescript
+// From: app\(victim)\report\status\[id]\page.tsx (lines 107-133)
+channelRef.current = supabase
+  .channel(`channel-name-${id}`)
+  .on("postgres_changes", {
+    event: "UPDATE",
+    schema: "public",
+    table: "table_name",
+    filter: `id=eq.${id}`,
+  }, (payload) => {
+    setState(payload.new as Type);
+  })
+  .on("postgres_changes", {
+    event: "INSERT",
+    schema: "public",
+    table: "message",
+    filter: `foreign_id=eq.${id}`,
+  }, (payload) => {
+    setMessages((prev) => [...prev, payload.new as Message]);
+  })
+  .subscribe();
+
+// Cleanup in useEffect return:
+if (channelRef.current) {
+  supabase.removeChannel(channelRef.current);
+}
+```
+
+### Tables to Subscribe (per PRD Module 6 Real-Time Features):
+| Feature | Table | Event |
+|---------|-------|-------|
+| New victim report on DMA map | `victim_report` | INSERT |
+| Victim sees DMA reply | `message` | INSERT (filter: victim_report_id=X) |
+| Volunteer receives assignment | `assignment` | INSERT/UPDATE |
+| Task force room messages | `message` | INSERT (filter: task_force_id=X) |
+| Volunteer live location | `volunteer` | UPDATE (lat/lng) |
+| Volunteer online status | `volunteer` | UPDATE (last_seen) |
+| DMA flagged notification | `message` | INSERT (filter: is_flagged_for_dma=true) |
+| Assignment status change | `assignment` | UPDATE (status) |
+| Resource low-stock alert | `resource` | UPDATE |
+
+---
 
 ### Issues Fixed:
 - [x] **Chat input bar missing** — Added `z-50` and safe-area-inset-bottom padding to fixed input bar
@@ -415,42 +494,60 @@
 
 ---
 
+## Phase 8 — DMA Messaging Hub ✅ COMPLETE
+
+### 8.1 DMA Messages Page (`/dma/messages`) ✅
+- [x] Two-column layout: channel list (240px) | message thread
+- [x] Three channel sections: Victim Reports, Task Force Rooms, Direct Messages
+- [x] Channel item: last message preview, timestamp, unread count badge, flagged indicator
+- [x] Active channel highlighted with orange left border
+- [x] Message thread: bubble style (DMA right-aligned orange, volunteer/victim left-aligned bg3)
+- [x] Flagged messages highlighted with red left border
+- [x] DMA messages show "DMA COMMAND" label
+- [x] Real-time updates via Supabase subscriptions on `message` table
+- [x] Flagged message notifications via `is_flagged_for_dma=true` subscription
+
+### 8.2 DMA Send Message API ✅
+- [x] `POST /api/dma/message` — sends message with sender_type='dma'
+- [x] `GET /api/dma/message` — fetches messages by channel_type + channel_id
+- [x] Support for all 5 channel types: victim_thread, taskforce_room, direct
+
+### 8.3 Flag Handler ✅
+- [x] `PATCH /api/volunteer/message/[id]/flag` — already existed, sets `is_flagged_for_dma=true`
+
+### API Routes Created
+- [x] `GET /api/dma/channels` — lists all channels with unread counts and flag status
+- [x] `GET/POST /api/dma/message` — message fetch and send
+
+---
+
 ## Next Phase
 
-**Phase 8: DMA Messaging Hub**
-- 8.1: Messages Page (`/dma/messages`) — All 5 channel types
-- 8.2: API Route — DMA Send Message
-- 8.3: Flag Handler
+**Phase 9: Broadcast + Resource Management**
+- 9.1: Broadcast Page (`/dma/broadcast`) — emergency broadcast to volunteers/TF/everyone
+- 9.2: API Route — Broadcast
+- 9.3: Resource Management (`/dma/resources`) — full CRUD for resource inventory
 
 ---
 
 ## Technical Notes
 
-**Please verify Phase 4 by:**
+### Verification Steps
 
-### DMA Dashboard Test:
-1. Navigate to `http://localhost:3000/dma/login` — DMA login page
-2. Log in with DMA credentials (email/password)
-3. Should redirect to `/dma/dashboard`
-4. Confirm three-column layout: left sidebar (260px) | center map | right sidebar (320px)
-5. Topbar shows: logo, nav tabs, live counters, session timer, CREATE TASK + BROADCAST buttons
-6. Map loads with victim report pins (seed data)
-7. Left sidebar: situation filters, urgency toggles, resource summary cards
-8. Right sidebar: Mission Control counters, Responders list
-9. Click a victim pin → report details in right sidebar
-10. Satellite toggle button works (dark ↔ satellite)
-11. Filters update map pins when toggled
+**Test Real-Time Subscriptions:**
+1. Open two browser tabs - one as volunteer, one as DMA
+2. As DMA, create an assignment for the volunteer
+3. The volunteer should IMMEDIATELY see the new assignment in their queue (no refresh needed)
+4. As volunteer, send a message in TF chat
+5. Other TF members should IMMEDIATATELY see the new message
+6. In DMA dashboard, the counters should update IMMEDIATELY when new reports come in
 
----
-
-## Next Phase
-
-**Phase 7: Volunteer PWA**
-- 7.1: Missions Screen (`/volunteer/missions`) — Queue/History tabs, Accept button
-- 7.2: Active Mission Screen (`/volunteer/active`) — ON MY WAY/ARRIVED/MARK COMPLETED/FAILED
-- 7.3: Map Screen (`/volunteer/map`) — Live GPS, directions API, route rendering
-- 7.4: Task Force Chat (`/volunteer/chat/[taskforce_id]`) — Message bubbles, flag button
-- 7.5: Profile Screen (`/volunteer/profile`) — Availability toggle, push subscription
+**Test DMA Messages:**
+1. Navigate to `http://localhost:3000/dma/messages`
+2. Confirm channel list shows: victim threads, TF rooms, direct messages
+3. Click a channel → message thread loads
+4. Send a message → it appears immediately
+5. As volunteer, flag a message → DMA sees red flag indicator in channel list
 
 ---
 

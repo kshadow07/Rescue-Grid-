@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface ActiveAssignment {
   id: string;
@@ -20,6 +22,9 @@ interface PendingCount {
 export default function VolunteerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const supabase = createClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const [volunteerId, setVolunteerId] = useState<string | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<ActiveAssignment | null>(null);
   const [pendingCount, setPendingCount] = useState<PendingCount>({ queue: 0 });
   const [currentTime, setCurrentTime] = useState('');
@@ -39,29 +44,66 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
   }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [assignRes, queueRes] = await Promise.all([
-          fetch('/api/volunteer/assignment/active'),
-          fetch('/api/volunteer/assignment/queue'),
-        ]);
-        
-        if (assignRes.ok) {
-          const data = await assignRes.json();
-          setActiveAssignment(data);
-        }
-        
-        if (queueRes.ok) {
-          const data = await queueRes.json();
-          setPendingCount({ queue: Array.isArray(data) ? data.length : 0 });
-        }
-      } catch {}
+    const getVolunteerId = async () => {
+      const cookie = document.cookie.split(';').find(c => c.trim().startsWith('volunteer_session='));
+      if (cookie) {
+        try {
+          const session = JSON.parse(decodeURIComponent(cookie.split('=')[1]));
+          setVolunteerId(session.volunteer_id);
+        } catch {}
+      }
     };
-    
-    fetchData();
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
+    getVolunteerId();
   }, []);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [assignRes, queueRes] = await Promise.all([
+        fetch('/api/volunteer/assignment/active'),
+        fetch('/api/volunteer/assignment/queue'),
+      ]);
+      
+      if (assignRes.ok) {
+        const data = await assignRes.json();
+        setActiveAssignment(data);
+      }
+      
+      if (queueRes.ok) {
+        const data = await queueRes.json();
+        setPendingCount({ queue: Array.isArray(data) ? data.length : 0 });
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (!volunteerId) return;
+
+    channelRef.current = supabase
+      .channel(`volunteer-layout-${volunteerId}`)
+      .on(
+        'postgres_changes' as const,
+        {
+          event: '*',
+          schema: 'public',
+          table: 'assignment',
+          filter: `assigned_to_volunteer=eq.${volunteerId}`,
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
+  }, [volunteerId, supabase, fetchData]);
 
   const getTimerRemaining = (timer: string | null) => {
     if (!timer) return null;

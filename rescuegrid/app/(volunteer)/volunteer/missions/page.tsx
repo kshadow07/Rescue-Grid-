@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
+import { createClient } from '@/lib/supabase/client';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface Assignment {
   id: string;
@@ -17,16 +19,33 @@ interface Assignment {
   updated_at?: string;
   victim_report_id: string | null;
   assigned_to_taskforce: string | null;
+  assigned_to_volunteer: string | null;
 }
 
 export default function MissionsPage() {
   const router = useRouter();
+  const supabase = createClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const [volunteerId, setVolunteerId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
   const [queueAssignments, setQueueAssignments] = useState<Assignment[]>([]);
   const [historyAssignments, setHistoryAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getVolunteerId = async () => {
+      const cookie = document.cookie.split(';').find(c => c.trim().startsWith('volunteer_session='));
+      if (cookie) {
+        try {
+          const session = JSON.parse(decodeURIComponent(cookie.split('=')[1]));
+          setVolunteerId(session.volunteer_id);
+        } catch {}
+      }
+    };
+    getVolunteerId();
+  }, []);
 
   const fetchAssignments = useCallback(async () => {
     try {
@@ -48,9 +67,33 @@ export default function MissionsPage() {
 
   useEffect(() => {
     fetchAssignments();
-    const interval = setInterval(fetchAssignments, 15000);
-    return () => clearInterval(interval);
   }, [fetchAssignments]);
+
+  useEffect(() => {
+    if (!volunteerId) return;
+
+    channelRef.current = supabase
+      .channel(`volunteer-assignments-${volunteerId}`)
+      .on(
+        'postgres_changes' as const,
+        {
+          event: '*',
+          schema: 'public',
+          table: 'assignment',
+          filter: `assigned_to_volunteer=eq.${volunteerId}`,
+        },
+        () => {
+          fetchAssignments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
+  }, [volunteerId, supabase, fetchAssignments]);
 
   const handleStart = async (id: string) => {
     setActionLoading(id);
