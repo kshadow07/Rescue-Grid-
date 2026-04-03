@@ -108,9 +108,9 @@ Build in `components/ui/`. These are reused across all three surfaces. Build onc
 **Goal:** All 7 tables exist in Supabase with correct types, FK constraints, RLS, and seed data.
 
 ### 1.1 Run Migrations
-Execute in Supabase SQL editor. Run in this exact order — it respects FK dependencies.
+Execute the migration file in Supabase SQL editor. Run in this exact order — it respects FK dependencies.
 
-```sql
+`supabase/migrations/001_initial_schema.sql`:
 -- 1. VICTIM_REPORT (no dependencies)
 CREATE TABLE victim_report (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -207,7 +207,6 @@ CREATE TABLE resource (
   location text,
   updated_at timestamptz DEFAULT now()
 );
-```
 
 ### 1.2 Enable Supabase Realtime
 In Supabase dashboard → Table Editor → Replication, enable for:
@@ -823,6 +822,8 @@ rescuegrid/
 │   ├── icon-192.png
 │   └── icon-512.png
 ├── supabase/
+│   ├── migrations/
+│   │   └── 001_initial_schema.sql
 │   └── seed.sql
 ├── middleware.ts
 ├── tailwind.config.ts
