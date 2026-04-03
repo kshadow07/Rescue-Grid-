@@ -34,6 +34,7 @@ interface Message {
   created_at: string;
   read_at: string | null;
   sender_name?: string;
+  _temp?: boolean;
 }
 
 interface VictimReport {
@@ -71,8 +72,15 @@ function MessagesContent() {
   const [activeChannelData, setActiveChannelData] = useState<VictimReport | null>(null);
   const [activeTab, setActiveTab] = useState<"victim" | "volunteer" | "taskforce">("victim");
   const [tfMembers, setTfMembers] = useState<TFMember[]>([]);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagePanelRef = useRef<HTMLDivElement>(null);
+
+  const messageCache = useRef<Record<string, { messages: Message[]; timestamp: number }>>({});
+  const channelDataCache = useRef<Record<string, { data: VictimReport | null; timestamp: number }>>({});
+  const tfMembersCache = useRef<Record<string, { members: TFMember[]; timestamp: number }>>({});
+  const CACHE_TTL = 60000;
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -101,8 +109,16 @@ function MessagesContent() {
     setLoading(false);
   }, []);
 
-  const fetchMessages = useCallback(async () => {
+  const fetchMessages = useCallback(async (forceRefresh = false) => {
     if (!activeChannel) return;
+    const cacheKey = `${activeChannel.type}-${activeChannel.id}`;
+    const now = Date.now();
+    
+    if (!forceRefresh && messageCache.current[cacheKey] && (now - messageCache.current[cacheKey].timestamp) < CACHE_TTL) {
+      setMessages(messageCache.current[cacheKey].messages);
+      return;
+    }
+    
     try {
       const res = await fetch(
         `/api/dma/message?channel_type=${activeChannel.type}&channel_id=${activeChannel.id}`
@@ -110,6 +126,7 @@ function MessagesContent() {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
+          messageCache.current[cacheKey] = { messages: data, timestamp: now };
           setMessages(data);
         }
       }
@@ -118,13 +135,22 @@ function MessagesContent() {
     }
   }, [activeChannel]);
 
-  const fetchChannelData = useCallback(async () => {
+  const fetchChannelData = useCallback(async (forceRefresh = false) => {
     if (!activeChannel) return;
     if (activeChannel.type === "victim_thread") {
+      const cacheKey = activeChannel.id;
+      const now = Date.now();
+      
+      if (!forceRefresh && channelDataCache.current[cacheKey] && (now - channelDataCache.current[cacheKey].timestamp) < CACHE_TTL) {
+        setActiveChannelData(channelDataCache.current[cacheKey].data);
+        return;
+      }
+      
       try {
         const res = await fetch(`/api/victim/report/${activeChannel.id}`);
         if (res.ok) {
           const data = await res.json();
+          channelDataCache.current[cacheKey] = { data: data.report, timestamp: now };
           setActiveChannelData(data.report);
         }
       } catch (err) {
@@ -135,13 +161,22 @@ function MessagesContent() {
     }
   }, [activeChannel]);
 
-  const fetchTfMembers = useCallback(async () => {
+  const fetchTfMembers = useCallback(async (forceRefresh = false) => {
     if (!activeChannel || activeChannel.type !== "taskforce_room") return;
+    const cacheKey = activeChannel.id;
+    const now = Date.now();
+    
+    if (!forceRefresh && tfMembersCache.current[cacheKey] && (now - tfMembersCache.current[cacheKey].timestamp) < CACHE_TTL) {
+      setTfMembers(tfMembersCache.current[cacheKey].members);
+      return;
+    }
+    
     try {
       const res = await fetch(`/api/dma/taskforce/members?taskforce_id=${activeChannel.id}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
+          tfMembersCache.current[cacheKey] = { members: data, timestamp: now };
           setTfMembers(data);
         }
       }
@@ -172,16 +207,42 @@ function MessagesContent() {
 
   useEffect(() => {
     if (activeChannel) {
-      fetchMessages();
-      fetchChannelData();
-      fetchTfMembers();
-      markAsRead();
+      Promise.all([
+        fetchMessages(),
+        fetchChannelData(),
+        fetchTfMembers(),
+        markAsRead()
+      ]);
     }
   }, [activeChannel, fetchMessages, fetchChannelData, fetchTfMembers, markAsRead]);
 
+  const handleScroll = useCallback(() => {
+    if (!messagePanelRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagePanelRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    setIsNearBottom(distanceFromBottom < 100);
+    if (distanceFromBottom < 100) {
+      setNewMessagesCount(0);
+    }
+  }, []);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, []);
+
   useEffect(() => {
     if (messages.length > 0 && messagePanelRef.current) {
-      messagePanelRef.current.scrollTop = messagePanelRef.current.scrollHeight;
+      if (isNearBottom) {
+        messagePanelRef.current.scrollTo({ top: messagePanelRef.current.scrollHeight, behavior: 'smooth' });
+      } else {
+        setNewMessagesCount(prev => prev + 1);
+      }
+    }
+  }, [messages, isNearBottom]);
+
+  useEffect(() => {
+    if (messages.length > 0 && messagePanelRef.current && isNearBottom) {
+      messagePanelRef.current.scrollTo({ top: messagePanelRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [messages]);
 
@@ -203,6 +264,7 @@ function MessagesContent() {
     }
 
     const channelName = `dma-messages-${activeChannel.type}-${activeChannel.id}`;
+    const cacheKey = `${activeChannel.type}-${activeChannel.id}`;
     channelRef.current = supabase
       .channel(channelName)
       .on(
@@ -213,9 +275,24 @@ function MessagesContent() {
           table: "message",
           filter,
         },
-        () => {
-          fetchMessages();
-          fetchChannels();
+        (payload) => {
+          const newMsg = payload.new as Message;
+          setMessages(prev => {
+            if (prev.find(m => m.id === newMsg.id)) return prev;
+            const updatedMessages = [...prev, newMsg];
+            messageCache.current[cacheKey] = { messages: updatedMessages, timestamp: Date.now() };
+            return updatedMessages;
+          });
+          if (isNearBottom) {
+            setTimeout(() => scrollToBottom('smooth'), 50);
+          } else {
+            setNewMessagesCount(prev => prev + 1);
+          }
+          setChannels(prev => prev.map(ch =>
+            ch.id === activeChannel.id
+              ? { ...ch, last_message: newMsg.content, last_message_time: newMsg.created_at }
+              : ch
+          ));
         }
       )
       .on(
@@ -226,9 +303,13 @@ function MessagesContent() {
           table: "message",
           filter,
         },
-        () => {
-          fetchMessages();
-          fetchChannels();
+        (payload) => {
+          const updatedMsg = payload.new as Message;
+          setMessages(prev => {
+            const updatedMessages = prev.map(m => m.id === updatedMsg.id ? updatedMsg : m);
+            messageCache.current[cacheKey] = { messages: updatedMessages, timestamp: Date.now() };
+            return updatedMessages;
+          });
         }
       )
       .subscribe();
@@ -239,7 +320,7 @@ function MessagesContent() {
         channelRef.current = null;
       }
     };
-  }, [supabase, activeChannel, fetchChannels, fetchMessages]);
+  }, [supabase, activeChannel, isNearBottom, scrollToBottom]);
 
   const handleChannelClick = (channel: Channel) => {
     if (activeChannel?.id === channel.id && activeChannel?.type === channel.type) return;
@@ -247,14 +328,40 @@ function MessagesContent() {
     setTfMembers([]);
     setMessages([]);
     setActiveChannelData(null);
+    setIsNearBottom(true);
+    setNewMessagesCount(0);
     if (messagePanelRef.current) {
-      messagePanelRef.current.scrollTop = 0;
+      messagePanelRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !activeChannel || sending) return;
+    
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const optimisticMessage: Message = {
+      id: tempId,
+      content: newMessage.trim(),
+      sender_type: "dma",
+      sender_id: null,
+      receiver_id: activeChannel.type === "direct" ? activeChannel.id : null,
+      task_force_id: activeChannel.type === "taskforce_room" ? activeChannel.id : null,
+      victim_report_id: activeChannel.type === "victim_thread" ? activeChannel.id : null,
+      is_flagged_for_dma: false,
+      created_at: new Date().toISOString(),
+      read_at: null,
+      sender_name: "DMA Command",
+      _temp: true,
+    };
+
     setSending(true);
+    setNewMessage("");
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    
+    if (messagePanelRef.current) {
+      messagePanelRef.current.scrollTo({ top: messagePanelRef.current.scrollHeight, behavior: 'smooth' });
+    }
 
     try {
       const res = await fetch("/api/dma/message", {
@@ -270,12 +377,17 @@ function MessagesContent() {
       });
 
       if (res.ok) {
-        setNewMessage("");
-        fetchMessages();
-        fetchChannels();
+        setChannels(prev => prev.map(ch =>
+          ch.id === activeChannel.id
+            ? { ...ch, last_message: newMessage.trim(), last_message_time: new Date().toISOString() }
+            : ch
+        ));
+      } else {
+        setMessages(prev => prev.filter(m => m.id !== tempId));
       }
     } catch (err) {
       console.error("Error sending message:", err);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
     }
     setSending(false);
   };
@@ -369,12 +481,12 @@ function MessagesContent() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-void overflow-hidden">
+    <div className="w-screen bg-void overflow-hidden" style={{ height: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <Topbar loginTime={loginTime} />
 
-      <div className="flex flex-1 pt-[52px]">
+      <div className="flex flex-1 min-h-0" style={{ paddingTop: '52px' }}>
         {/* Channel List Panel */}
-        <div className="w-[280px] bg-surface-1 border-r border-border-dim flex flex-col shrink-0">
+        <div className="w-[280px] bg-surface-1 border-r border-border-dim flex flex-col shrink-0 overflow-hidden">
           <div className="p-3 border-b border-border-dim">
             <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-ink mb-3">
               Communication Hub
@@ -415,7 +527,7 @@ function MessagesContent() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto min-h-0">
             {filteredChannels.length === 0 ? (
               <div className="p-4 text-center">
                 <p className="font-mono text-dim text-[10px] uppercase tracking-wider">
@@ -428,16 +540,17 @@ function MessagesContent() {
                   <button
                     key={`${channel.type}-${channel.id}`}
                     onClick={() => handleChannelClick(channel)}
-                    className={`w-full text-left p-3 border-b border-border-dim transition-all ${
+                    className={`w-full text-left p-3 border-b border-border-dim/30 transition-all duration-200 group relative overflow-hidden ${
                       activeChannel?.id === channel.id && activeChannel?.type === channel.type
                         ? "bg-surface-3 border-l-2 border-l-orange"
-                        : "hover:bg-surface-2 border-l-2 border-l-transparent"
+                        : "hover:bg-surface-2/80 border-l-2 border-l-transparent hover:border-l-orange/50"
                     }`}
                   >
+                    <div className="absolute inset-0 bg-gradient-to-r from-orange/0 via-orange/5 to-orange/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     {/* Channel Header */}
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div className="flex items-start justify-between gap-2 mb-1.5 relative">
                       <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded flex items-center justify-center font-display text-[11px] font-bold ${
+                        <div className={`w-8 h-8 rounded flex items-center justify-center font-display text-[11px] font-bold transition-transform group-hover:scale-110 ${
                           channel.type === "victim_thread" ? "bg-alert/20 text-alert" :
                           channel.type === "taskforce_room" ? "bg-ops/20 text-ops" :
                           "bg-orange/20 text-orange"
@@ -501,7 +614,7 @@ function MessagesContent() {
         </div>
 
         {/* Message Thread Panel */}
-        <div className="flex-1 flex flex-col bg-void">
+        <div className="flex-1 flex flex-col bg-void min-h-0 relative">
           {activeChannel ? (
             <>
               {/* Thread Header */}
@@ -587,7 +700,7 @@ function MessagesContent() {
               )}
 
               {/* Messages Area */}
-              <div ref={messagePanelRef} className="flex-1 overflow-y-auto p-4 space-y-1">
+              <div ref={messagePanelRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-1 min-h-0">
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full">
                     <div className="w-16 h-16 bg-surface-2 rounded-full flex items-center justify-center mb-4">
@@ -654,30 +767,38 @@ function MessagesContent() {
 
                                 {/* Message Bubble */}
                                 <div
-                                  className={`relative px-4 py-3 ${
+                                  className={`relative px-5 py-3.5 transition-all duration-200 message-bubble ${
                                     isDma
-                                      ? "bg-orange text-void"
-                                      : "bg-surface-3 text-ink border border-border-dim"
-                                  } ${isFlagged ? "border-l-4 border-l-alert" : ""}`}
+                                      ? "bg-gradient-to-br from-orange to-orange/90 text-void shadow-[0_4px_20px_rgba(249,115,22,0.3)]"
+                                      : "bg-surface-3 text-ink border border-border-dim/50 shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+                                  } ${isFlagged ? "ring-2 ring-alert/50 ring-offset-2 ring-offset-void" : ""}`}
                                   style={{
                                     clipPath: isDma
-                                      ? "polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%)"
-                                      : "polygon(12px 0, 100% 0, 100% 100%, 0 100%, 0 12px)",
+                                      ? "polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%)"
+                                      : "polygon(14px 0, 100% 0, 100% 100%, 0 100%, 0 14px)",
                                   }}
                                 >
                                   <p className="font-body text-[14px] leading-relaxed whitespace-pre-wrap">
                                     {msg.content}
                                   </p>
+                                  {isDma && (
+                                    <div className="absolute -bottom-px right-4 w-4 h-4 bg-orange/90 overflow-hidden">
+                                      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-orange/50 to-transparent" />
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Message Meta */}
-                                <div className={`flex items-center gap-2 mt-1 ${isDma ? "justify-end" : "justify-start"} mx-1`}>
-                                  <span className="font-mono text-[9px] text-dim">
+                                <div className={`flex items-center gap-2 mt-1.5 ${isDma ? "justify-end" : "justify-start"} mx-1`}>
+                                  <span className="font-mono text-[9px] text-dim/80">
                                     {formatTime(msg.created_at)}
                                   </span>
                                   {isFlagged && (
-                                    <span className="font-mono text-[9px] text-alert uppercase tracking-wider">
-                                      ⚑ Flagged
+                                    <span className="font-mono text-[9px] text-alert uppercase tracking-wider flex items-center gap-1">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M10 2L12.5 8.5L19.5 9.5L14.5 14L16 21L10 17.5L4 21L5.5 14L0.5 9.5L7.5 8.5L10 2Z"/>
+                                      </svg>
+                                      Flagged
                                     </span>
                                   )}
                                 </div>
@@ -692,46 +813,95 @@ function MessagesContent() {
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Jump to Bottom Button */}
+              {!isNearBottom && newMessagesCount > 0 && (
+                <button
+                  onClick={() => {
+                    scrollToBottom('smooth');
+                    setNewMessagesCount(0);
+                  }}
+                  className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange to-orange/90 text-void px-5 py-2.5 rounded-full font-display text-[11px] font-bold tracking-wide shadow-[0_4px_20px_rgba(249,115,22,0.4)] hover:scale-105 hover:shadow-[0_6px_30px_rgba(249,115,22,0.5)] active:scale-95 transition-all duration-200 flex items-center gap-2 z-10 animate-bounce-subtle"
+                  style={{ clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))' }}
+                >
+                  <svg className="w-4 h-4 animate-bounce" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M19 14L12 21L5 14M19 14L12 7L5 14" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  {newMessagesCount} new message{newMessagesCount > 1 ? 's' : ''}
+                </button>
+              )}
+
               {/* Message Input */}
-              <div className="p-4 bg-surface-1 border-t border-border-dim">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                    placeholder={`Message ${activeChannel.label}...`}
-                    className="flex-1 px-4 py-3 bg-surface-3 border-l-2 border-l-orange font-body text-[14px] text-ink placeholder:text-dim focus:outline-none focus:bg-surface-4 transition-colors"
-                    style={{ clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)" }}
-                  />
+              <div className="p-4 bg-surface-1/80 backdrop-blur-xl border-t border-border-dim/50 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && !sending && handleSendMessage()}
+                      placeholder={`Message ${activeChannel.label}...`}
+                      className="w-full px-5 py-4 bg-surface-2/80 border border-border-dim/30 rounded-lg font-body text-[14px] text-ink placeholder:text-dim/60 focus:outline-none focus:border-orange/50 focus:ring-2 focus:ring-orange/20 transition-all"
+                    />
+                    <div className="absolute inset-0 rounded-lg pointer-events-none bg-gradient-to-r from-orange/5 via-transparent to-transparent opacity-0 focus-within:opacity-100 transition-opacity" />
+                  </div>
                   <button
                     onClick={handleSendMessage}
                     disabled={!newMessage.trim() || sending}
-                    className={`px-6 py-3 font-display font-semibold text-[11px] uppercase tracking-[0.1em] transition-all ${
+                    className={`relative px-8 py-4 font-display font-bold text-[12px] uppercase tracking-[0.15em] transition-all duration-300 ${
                       newMessage.trim() && !sending
-                        ? "bg-orange text-void hover:bg-orange/90"
-                        : "bg-surface-3 text-dim cursor-not-allowed"
+                        ? "bg-orange text-void hover:bg-orange/90 hover:scale-105 hover:shadow-[0_0_20px_rgba(249,115,22,0.4)] active:scale-95"
+                        : "bg-surface-3 text-dim/50 cursor-not-allowed"
                     }`}
-                    style={{ clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)" }}
+                    style={{ clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px))" }}
                   >
-                    {sending ? "..." : "SEND →"}
+                    {sending ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" strokeOpacity="0.3" />
+                          <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                        </svg>
+                        Sending
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        Send
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full">
-              <div className="w-20 h-20 bg-surface-2 rounded-full flex items-center justify-center mb-4">
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-dim">
+            <div className="flex flex-col items-center justify-center h-full relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange/5 via-transparent to-transparent opacity-50" />
+              <div className="w-24 h-24 bg-surface-2/50 rounded-2xl flex items-center justify-center mb-6 border border-border-dim/30 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-dim">
                   <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
                 </svg>
               </div>
-              <p className="font-display text-[14px] text-dim uppercase tracking-wider mb-2">
+              <p className="font-display text-[16px] text-dim uppercase tracking-[0.2em] mb-3">
                 Select a Channel
               </p>
-              <p className="font-mono text-[10px] text-dim">
+              <p className="font-mono text-[11px] text-dim/60">
                 Choose from Victim Reports, Volunteers, or TF Groups
               </p>
+              <div className="mt-8 flex items-center gap-6">
+                <div className="flex items-center gap-2 text-dim/40">
+                  <div className="w-2 h-2 rounded-full bg-alert/60" />
+                  <span className="font-mono text-[9px] uppercase">Critical</span>
+                </div>
+                <div className="flex items-center gap-2 text-dim/40">
+                  <div className="w-2 h-2 rounded-full bg-ops/60" />
+                  <span className="font-mono text-[9px] uppercase">Active</span>
+                </div>
+                <div className="flex items-center gap-2 text-dim/40">
+                  <div className="w-2 h-2 rounded-full bg-orange/60" />
+                  <span className="font-mono text-[9px] uppercase">Direct</span>
+                </div>
+              </div>
             </div>
           )}
         </div>

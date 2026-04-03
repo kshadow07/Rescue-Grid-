@@ -199,32 +199,33 @@ export default function VolunteerInboxPage() {
 
     channelsRef.current.push(dmUpdatesChannel);
 
-    const taskForceChannel = supabase
-      .channel(`volunteer-taskforces-${volunteerId}`)
-      .on(
-        'postgres_changes' as const,
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'message',
-          filter: `task_force_id=eq.${taskForces.map(tf => tf.id).join('&task_force_id=eq.')}`,
-        },
-        (payload) => {
-          const newMsg = payload.new as DirectMessage & { task_force_id: string };
-          if (newMsg.task_force_id) {
+    const tfChannelPromises = taskForces.map(tf => {
+      const tfChannel = supabase
+        .channel(`volunteer-tf-${tf.id}`)
+        .on(
+          'postgres_changes' as const,
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'message',
+            filter: `task_force_id=eq.${tf.id}`,
+          },
+          (payload) => {
+            const newMsg = payload.new as DirectMessage & { task_force_id: string };
             setTfMessages(prev => ({
               ...prev,
-              [newMsg.task_force_id]: [
-                ...(prev[newMsg.task_force_id] || []),
+              [tf.id]: [
+                ...(prev[tf.id] || []),
                 newMsg
               ].slice(-200)
             }));
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+      return tfChannel;
+    });
 
-    channelsRef.current.push(taskForceChannel);
+    channelsRef.current.push(...tfChannelPromises);
 
     return () => {
       cleanupChannels();

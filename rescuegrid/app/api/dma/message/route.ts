@@ -10,32 +10,29 @@ export async function GET(request: Request) {
 
   try {
     if (channelType === "victim_thread" && channelId) {
-      const { data: messages, error } = await supabase
-        .from("message")
-        .select("*")
-        .eq("victim_report_id", channelId)
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-
-      if (messages && messages.length > 0) {
-        const { data: victimReport } = await supabase
+      const [{ data: messages, error }, { data: victimReport }] = await Promise.all([
+        supabase
+          .from("message")
+          .select("*")
+          .eq("victim_report_id", channelId)
+          .order("created_at", { ascending: true }),
+        supabase
           .from("victim_report")
           .select("phone_no")
           .eq("id", channelId)
-          .single();
+          .single()
+      ]);
 
-        const phoneNo = victimReport?.phone_no || "Unknown";
+      if (error) throw error;
 
-        const messagesWithSender = messages.map((msg) => ({
-          ...msg,
-          sender_name: msg.sender_type === "victim" ? phoneNo : msg.sender_type === "dma" ? "DMA Command" : "Unknown",
-        }));
+      const phoneNo = victimReport?.phone_no || "Unknown";
 
-        return NextResponse.json(messagesWithSender);
-      }
+      const messagesWithSender = (messages || []).map((msg) => ({
+        ...msg,
+        sender_name: msg.sender_type === "victim" ? phoneNo : msg.sender_type === "dma" ? "DMA Command" : "Unknown",
+      }));
 
-      return NextResponse.json(messages || []);
+      return NextResponse.json(messagesWithSender);
     }
 
     if (channelType === "taskforce_room" && channelId) {
