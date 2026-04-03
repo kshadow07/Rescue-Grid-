@@ -23,7 +23,8 @@ export async function PATCH(
     const volunteerId = session.volunteer_id;
     const { id } = await params;
     const body = await request.json();
-    const { status } = body;
+    const { status: statusFromBody, action } = body;
+    const status = statusFromBody || action;
 
     if (!status || !['on_my_way', 'arrived', 'completed', 'failed'].includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
@@ -60,8 +61,15 @@ export async function PATCH(
       updated_at: new Date().toISOString()
     };
 
-    if (status === 'completed' && assignment.victim_report_id) {
-      updateData.victim_report_status = 'resolved';
+    if (assignment.victim_report_id) {
+      let victimStatus = 'assigned';
+      if (status === 'completed') victimStatus = 'resolved';
+      else if (status === 'on_my_way' || status === 'arrived') victimStatus = 'in-progress';
+      
+      await supabase
+        .from('victim_report')
+        .update({ status: victimStatus })
+        .eq('id', assignment.victim_report_id);
     }
 
     const { data, error } = await supabase

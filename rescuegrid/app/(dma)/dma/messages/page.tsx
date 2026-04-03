@@ -105,8 +105,9 @@ export default function MessagesPage() {
   }, [messages]);
 
   useEffect(() => {
+    const channelName = `dma-messages-${Date.now()}`;
     channelRef.current = supabase
-      .channel("dma-messages-all")
+      .channel(channelName)
       .on(
         "postgres_changes" as const,
         {

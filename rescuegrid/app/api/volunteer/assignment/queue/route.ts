@@ -47,13 +47,16 @@ export async function GET() {
       .eq('status', 'active')
       .order('created_at', { ascending: false });
 
-    const filteredTfAssignments = tfAssignments?.filter(async (a) => {
+    const filteredTfAssignments = [];
+    for (const a of tfAssignments || []) {
       const { data: members } = await supabase
         .from('task_force_member')
         .select('volunteer_id')
         .eq('task_force_id', a.assigned_to_taskforce);
-      return members?.some(m => m.volunteer_id === volunteerId);
-    }) || [];
+      if (members?.some(m => m.volunteer_id === volunteerId)) {
+        filteredTfAssignments.push(a);
+      }
+    }
 
     const allAssignments = [...(assignments || []), ...filteredTfAssignments];
     return NextResponse.json(allAssignments);

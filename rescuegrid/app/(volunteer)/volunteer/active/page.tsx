@@ -64,17 +64,17 @@ export default function ActiveMissionPage() {
     fetchActive();
   }, [fetchActive]);
 
-  const updateStatus = async (action: string) => {
+  const updateStatus = async (newStatus: string) => {
     if (!assignment) return;
     setUpdating(true);
     try {
       const res = await fetch(`/api/volunteer/assignment/${assignment.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {
-        if (action === 'completed' || action === 'failed') {
+        if (newStatus === 'completed' || newStatus === 'failed') {
           router.push('/volunteer/missions');
           router.refresh();
         } else {

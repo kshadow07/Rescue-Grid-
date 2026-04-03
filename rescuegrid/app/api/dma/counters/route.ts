@@ -14,7 +14,7 @@ export async function GET() {
       supabase
         .from("assignment")
         .select("id", { count: "exact", head: true })
-        .eq("status", "active"),
+        .in("status", ["active", "on_my_way", "arrived"]),
       supabase
         .from("volunteer")
         .select("id", { count: "exact", head: true })

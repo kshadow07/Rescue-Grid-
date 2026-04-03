@@ -101,7 +101,7 @@ export default function MissionsPage() {
       const res = await fetch(`/api/volunteer/assignment/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'accept' }),
+        body: JSON.stringify({ status: 'on_my_way' }),
       });
       if (res.ok) {
         router.push('/volunteer/active');

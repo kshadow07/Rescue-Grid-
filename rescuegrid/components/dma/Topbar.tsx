@@ -47,7 +47,7 @@ export default function Topbar({ loginTime }: TopbarProps) {
     fetchCounters();
 
     channelRef.current = supabase
-      .channel('dma-topbar-counters')
+      .channel(`dma-topbar-${Date.now()}`)
       .on(
         'postgres_changes' as const,
         {
