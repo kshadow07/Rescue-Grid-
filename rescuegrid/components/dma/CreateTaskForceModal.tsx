@@ -30,6 +30,7 @@ export default function CreateTaskForceModal({ onClose, onCreated }: CreateTaskF
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [membersDropdownOpen, setMembersDropdownOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -130,41 +131,95 @@ export default function CreateTaskForceModal({ onClose, onCreated }: CreateTaskF
 
             <div>
               <label className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-2">
-                ADD MEMBERS * ({selectedMembers.length} selected)
+                ADD MEMBERS *
               </label>
-              <div className="max-h-48 overflow-y-auto border border-border-dim bg-surface-3">
-                {volunteers.length === 0 ? (
-                  <div className="p-4 font-mono text-[11px] text-dim text-center">
-                    No volunteers available
-                  </div>
-                ) : (
-                  volunteers.map((vol) => {
-                    const isSelected = selectedMembers.includes(vol.id);
+              
+              <button
+                type="button"
+                onClick={() => setMembersDropdownOpen(!membersDropdownOpen)}
+                className="w-full flex items-center justify-between px-3 py-2 bg-surface-3 border-b border-border-dim border-l-3 border-l-orange font-body text-sm text-ink focus:outline-none focus:bg-surface-4 focus:border-orange transition-colors"
+              >
+                <span className={selectedMembers.length === 0 ? "text-dim" : "text-ink"}>
+                  {selectedMembers.length === 0 
+                    ? "Select members..." 
+                    : `${selectedMembers.length} member${selectedMembers.length > 1 ? "s" : ""} selected`
+                  }
+                </span>
+                <span className="text-dim text-[12px]">{membersDropdownOpen ? "▲" : "▼"}</span>
+              </button>
+
+              {membersDropdownOpen && (
+                <div className="mt-1 max-h-48 overflow-y-auto border border-border-dim bg-surface-3 z-10 relative">
+                  {volunteers.length === 0 ? (
+                    <div className="p-4 font-mono text-[11px] text-dim text-center">
+                      No volunteers available
+                    </div>
+                  ) : (
+                    volunteers.map((vol) => {
+                      const isSelected = selectedMembers.includes(vol.id);
+                      return (
+                        <button
+                          key={vol.id}
+                          type="button"
+                          onClick={() => toggleMember(vol.id)}
+                          className={`w-full flex items-center justify-between p-3 border-b border-border-dim/50 last:border-b-0 transition-colors ${
+                            isSelected ? "bg-ops/10 border-l-4 border-l-ops" : "hover:bg-surface-4"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-5 h-5 border ${isSelected ? "border-ops bg-ops" : "border-border-dim"} flex items-center justify-center`}>
+                              {isSelected && (
+                                <span className="text-void text-[10px]">✓</span>
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-body text-[13px] text-ink font-semibold">{vol.name}</div>
+                              <div className="font-mono text-[10px] text-dim">{vol.type}</div>
+                            </div>
+                          </div>
+                          <StatusBadge status={getVolunteerStatus(vol.status)} />
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {selectedMembers.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedMembers.map((memberId) => {
+                    const vol = volunteers.find(v => v.id === memberId);
+                    if (!vol) return null;
                     return (
-                      <button
-                        key={vol.id}
-                        onClick={() => toggleMember(vol.id)}
-                        className={`w-full flex items-center justify-between p-3 border-b border-border-dim/50 last:border-b-0 transition-colors ${
-                          isSelected ? "bg-ops/10 border-l-4 border-l-ops" : "hover:bg-surface-4"
-                        }`}
+                      <div
+                        key={memberId}
+                        className="flex items-center gap-1.5 pl-2 pr-1 py-1 bg-ops/10 border border-ops/30 text-ink"
+                        style={{ clipPath: "var(--clip-tactical-sm)" }}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 border ${isSelected ? "border-ops bg-ops" : "border-border-dim"} flex items-center justify-center`}>
-                            {isSelected && (
-                              <span className="text-void text-[10px]">✓</span>
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-body text-[13px] text-ink font-semibold">{vol.name}</div>
-                            <div className="font-mono text-[10px] text-dim">{vol.type}</div>
-                          </div>
-                        </div>
-                        <StatusBadge status={getVolunteerStatus(vol.status)} />
-                      </button>
+                        <span className="font-body text-[12px]">{vol.name}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleMember(memberId);
+                          }}
+                          className="ml-1 w-4 h-4 flex items-center justify-center bg-surface-3 hover:bg-alert/20 hover:text-alert transition-colors text-dim text-[10px]"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     );
-                  })
-                )}
-              </div>
+                  })}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setMembersDropdownOpen(false)}
+                className={`mt-2 w-full py-1.5 font-mono text-[10px] uppercase tracking-wider text-center text-dim hover:text-ink hover:bg-surface-3 transition-colors ${membersDropdownOpen ? "block" : "hidden"}`}
+              >
+                ✓ Done Selecting
+              </button>
             </div>
 
             <div>
