@@ -27,16 +27,33 @@ export function useSOSSMS() {
         return;
       }
 
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          resolve({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-          });
-        },
-        (err) => reject(err),
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
+      const tryGetPosition = (highAccuracy: boolean) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            resolve({
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            });
+          },
+          (err) => {
+            // If high accuracy fails (timeout or unavailable), try low accuracy
+            if (highAccuracy && (err.code === 3 || err.code === 2)) {
+              console.log("High accuracy failed, trying low accuracy...");
+              tryGetPosition(false);
+              return;
+            }
+            reject(err);
+          },
+          { 
+            enableHighAccuracy: highAccuracy, 
+            timeout: highAccuracy ? 15000 : 10000,
+            maximumAge: 60000 
+          }
+        );
+      };
+
+      // Try high accuracy first, fallback to low accuracy
+      tryGetPosition(true);
     });
   }, []);
 

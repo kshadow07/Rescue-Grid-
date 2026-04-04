@@ -104,34 +104,45 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
+    const tryGetPosition = (highAccuracy: boolean) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
 
-        positionRef.current = { lat, lng, timestamp: Date.now() };
-        setLatitude(lat);
-        setLongitude(lng);
-        setPermission('granted');
-        setError(null);
-        sendLocationUpdate(lat, lng);
-        startTracking();
-      },
-      (err) => {
-        if (err.code === 1) {
-          setPermission('denied');
-          setError('Permission denied. Please enable location access in browser settings.');
-        } else {
-          setPermission('prompt');
-          setError('Location services unavailable.');
+          positionRef.current = { lat, lng, timestamp: Date.now() };
+          setLatitude(lat);
+          setLongitude(lng);
+          setPermission('granted');
+          setError(null);
+          sendLocationUpdate(lat, lng);
+          startTracking();
+        },
+        (err) => {
+          // If high accuracy timeout/unavailable, try low accuracy
+          if (highAccuracy && (err.code === 3 || err.code === 2)) {
+            console.log('High accuracy failed, trying low accuracy...');
+            tryGetPosition(false);
+            return;
+          }
+          if (err.code === 1) {
+            setPermission('denied');
+            setError('Permission denied. Please enable location access in browser settings.');
+          } else {
+            setPermission('prompt');
+            setError(err.code === 3 ? 'Location request timed out. Try again.' : 'Location services unavailable.');
+          }
+        },
+        {
+          enableHighAccuracy: highAccuracy,
+          timeout: highAccuracy ? 15000 : 10000,
+          maximumAge: 60000,
         }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      }
-    );
+      );
+    };
+
+    // Try high accuracy first, fallback to low accuracy
+    tryGetPosition(true);
   }, [sendLocationUpdate, startTracking]);
 
   useEffect(() => {
@@ -143,29 +154,40 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        positionRef.current = { lat, lng, timestamp: Date.now() };
-        setLatitude(lat);
-        setLongitude(lng);
-        setPermission('granted');
-        startTracking();
-      },
-      (err) => {
-        if (err.code === 1) {
-          setPermission('denied');
-        } else {
-          setPermission('prompt');
+    const tryGetPosition = (highAccuracy: boolean) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          positionRef.current = { lat, lng, timestamp: Date.now() };
+          setLatitude(lat);
+          setLongitude(lng);
+          setPermission('granted');
+          startTracking();
+        },
+        (err) => {
+          // If high accuracy timeout/unavailable, try low accuracy
+          if (highAccuracy && (err.code === 3 || err.code === 2)) {
+            console.log('High accuracy failed on init, trying low accuracy...');
+            tryGetPosition(false);
+            return;
+          }
+          if (err.code === 1) {
+            setPermission('denied');
+          } else {
+            setPermission('prompt');
+          }
+        },
+        {
+          enableHighAccuracy: highAccuracy,
+          timeout: highAccuracy ? 15000 : 10000,
+          maximumAge: 60000,
         }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000,
-      }
-    );
+      );
+    };
+
+    // Try high accuracy first, fallback to low accuracy
+    tryGetPosition(true);
 
     return () => {
       if (watchIdRef.current !== null) {
