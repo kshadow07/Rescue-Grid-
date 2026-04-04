@@ -10,7 +10,7 @@ export default function LocationPermissionModal() {
     return null;
   }
 
-  const isRequesting = permission === 'requesting';
+  const isRequesting = permission === 'prompt';
   const isDenied = permission === 'denied';
 
   return (
