@@ -5,7 +5,8 @@ let client: SupabaseClient | null = null;
 
 export function createClient(): SupabaseClient {
   if (typeof window === "undefined") {
-    throw new Error("createClient should only be called in the browser");
+    // Return a dummy client during SSR that will be replaced on hydration
+    return {} as SupabaseClient;
   }
   
   if (!client) {
