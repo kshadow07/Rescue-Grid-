@@ -14,6 +14,7 @@ interface SOSSMSButtonProps {
 interface LocationData {
   latitude: number;
   longitude: number;
+  accuracy: number;
 }
 
 export function useSOSSMS() {
@@ -33,6 +34,7 @@ export function useSOSSMS() {
             resolve({
               latitude: pos.coords.latitude,
               longitude: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
             });
           },
           (err) => {
@@ -65,9 +67,11 @@ export function useSOSSMS() {
       try {
         const location = await getLocation();
 
+        const accuracyText = location.accuracy < 50 ? "High" : location.accuracy < 200 ? "Medium" : "Low";
         const message = `RESCUEGRID SOS
 Phone: ${phone}
 Location: ${location.latitude},${location.longitude}
+Accuracy: ${accuracyText} (~${Math.round(location.accuracy)}m)
 Type: ${situationType}
 Msg: ${customMessage || "None"}`;
 
