@@ -19,19 +19,25 @@ export async function PATCH(request: Request) {
     const session = JSON.parse(sessionCookie.value);
     const volunteerId = session.volunteer_id;
     const body = await request.json();
-    const { latitude, longitude } = body;
+    const { latitude, longitude, accuracy } = body;
 
     if (typeof latitude !== 'number' || typeof longitude !== 'number') {
       return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 });
     }
 
+    const updateData: Record<string, number | string> = {
+      latitude,
+      longitude,
+      last_seen: new Date().toISOString()
+    };
+    
+    if (typeof accuracy === 'number') {
+      updateData.accuracy = accuracy;
+    }
+
     const { error } = await supabase
       .from('volunteer')
-      .update({
-        latitude,
-        longitude,
-        last_seen: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', volunteerId);
 
     if (error) {

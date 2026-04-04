@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 interface LocationContextType {
   latitude: number | null;
   longitude: number | null;
+  accuracy: number | null;
   permission: 'granted' | 'denied' | 'prompt' | null;
   error: string | null;
   requestPermission: () => Promise<void>;
@@ -17,7 +18,7 @@ const UI_UPDATE_INTERVAL = 5000;
 const DB_SYNC_THROTTLE = 30000;
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
-  const positionRef = useRef<{ lat: number; lng: number; timestamp: number } | null>(null);
+  const positionRef = useRef<{ lat: number; lng: number; accuracy: number; timestamp: number } | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const uiIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastDbSyncRef = useRef<number>(0);
@@ -25,11 +26,12 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
 
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
   const [permission, setPermission] = useState<'granted' | 'denied' | 'prompt' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isTracking, setIsTracking] = useState(false);
 
-  const sendLocationUpdate = useCallback(async (lat: number, lng: number) => {
+  const sendLocationUpdate = useCallback(async (lat: number, lng: number, acc: number) => {
     const now = Date.now();
     if (now - lastDbSyncRef.current < DB_SYNC_THROTTLE) {
       return;
@@ -39,7 +41,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/volunteer/location', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: lat, longitude: lng }),
+        body: JSON.stringify({ latitude: lat, longitude: lng, accuracy: acc }),
       });
 
       if (res.ok) {
@@ -72,7 +74,8 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
-        positionRef.current = { lat, lng, timestamp: Date.now() };
+        const acc = position.coords.accuracy;
+        positionRef.current = { lat, lng, accuracy: acc, timestamp: Date.now() };
       },
       (err) => {
         if (err.code === 1) {
@@ -92,7 +95,8 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       if (pos) {
         setLatitude(pos.lat);
         setLongitude(pos.lng);
-        sendLocationUpdate(pos.lat, pos.lng);
+        setAccuracy(pos.accuracy);
+        sendLocationUpdate(pos.lat, pos.lng, pos.accuracy);
       }
     }, UI_UPDATE_INTERVAL);
   }, [sendLocationUpdate, stopTracking]);
@@ -109,13 +113,15 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         (position) => {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
+          const acc = position.coords.accuracy;
 
-          positionRef.current = { lat, lng, timestamp: Date.now() };
+          positionRef.current = { lat, lng, accuracy: acc, timestamp: Date.now() };
           setLatitude(lat);
           setLongitude(lng);
+          setAccuracy(acc);
           setPermission('granted');
           setError(null);
-          sendLocationUpdate(lat, lng);
+          sendLocationUpdate(lat, lng, acc);
           startTracking();
         },
         (err) => {
@@ -159,9 +165,11 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         (position) => {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
-          positionRef.current = { lat, lng, timestamp: Date.now() };
+          const acc = position.coords.accuracy;
+          positionRef.current = { lat, lng, accuracy: acc, timestamp: Date.now() };
           setLatitude(lat);
           setLongitude(lng);
+          setAccuracy(acc);
           setPermission('granted');
           startTracking();
         },
@@ -215,6 +223,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       value={{
         latitude,
         longitude,
+        accuracy,
         permission,
         error,
         requestPermission,
