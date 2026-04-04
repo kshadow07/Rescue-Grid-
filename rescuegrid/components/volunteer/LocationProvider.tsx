@@ -13,142 +13,145 @@ interface LocationContextType {
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
 
-const LOCATION_UPDATE_INTERVAL = 30000; // 30 seconds
+const UI_UPDATE_INTERVAL = 5000;
+const DB_SYNC_THROTTLE = 30000;
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
+  const positionRef = useRef<{ lat: number; lng: number; timestamp: number } | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const uiIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastDbSyncRef = useRef<number>(0);
+  const hasInitializedRef = useRef(false);
+
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [permission, setPermission] = useState<'granted' | 'denied' | 'prompt' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isTracking, setIsTracking] = useState(false);
-  
-  const watchIdRef = useRef<number | null>(null);
-  const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const hasInitializedRef = useRef(false);
 
-  // Send location update to server
   const sendLocationUpdate = useCallback(async (lat: number, lng: number) => {
+    const now = Date.now();
+    if (now - lastDbSyncRef.current < DB_SYNC_THROTTLE) {
+      return;
+    }
+
     try {
       const res = await fetch('/api/volunteer/location', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ latitude: lat, longitude: lng }),
       });
-      
-      if (!res.ok) {
-        console.error('Failed to update location:', await res.text());
+
+      if (res.ok) {
+        lastDbSyncRef.current = now;
       }
-    } catch (err) {
-      console.error('Error sending location update:', err);
+    } catch {
+      // Silent fail - will retry on next interval
     }
   }, []);
 
-  // Stop tracking - defined before startTracking to avoid reference issues
   const stopTracking = useCallback(() => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
-    if (updateIntervalRef.current) {
-      clearInterval(updateIntervalRef.current);
-      updateIntervalRef.current = null;
+    if (uiIntervalRef.current) {
+      clearInterval(uiIntervalRef.current);
+      uiIntervalRef.current = null;
     }
     setIsTracking(false);
   }, []);
 
-  // Start tracking location
   const startTracking = useCallback(() => {
     if (!navigator.geolocation || watchIdRef.current !== null) return;
 
     setIsTracking(true);
+    setError(null);
 
-    // Watch position for continuous updates
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
-        setLatitude(lat);
-        setLongitude(lng);
-        setError(null);
-        // Send update immediately when position changes
-        sendLocationUpdate(lat, lng);
+        positionRef.current = { lat, lng, timestamp: Date.now() };
       },
       (err) => {
-        console.error('Watch position error:', err);
+        if (err.code === 1) {
+          setPermission('denied');
+          stopTracking();
+        }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 5000,
+      }
     );
 
-    // Also send updates periodically as a fallback
-    updateIntervalRef.current = setInterval(() => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setLatitude(lat);
-          setLongitude(lng);
-          sendLocationUpdate(lat, lng);
-        },
-        (err) => {
-          console.error('Periodic location check error:', err);
-        },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
-      );
-    }, LOCATION_UPDATE_INTERVAL);
-  }, [sendLocationUpdate]);
+    uiIntervalRef.current = setInterval(() => {
+      const pos = positionRef.current;
+      if (pos) {
+        setLatitude(pos.lat);
+        setLongitude(pos.lng);
+        sendLocationUpdate(pos.lat, pos.lng);
+      }
+    }, UI_UPDATE_INTERVAL);
+  }, [sendLocationUpdate, stopTracking]);
 
-  // Request permission and start tracking
   const requestPermission = useCallback(async () => {
-    setError(null);
-    
     if (!navigator.geolocation) {
-      setError('Geolocation is not supported by this browser');
+      setError('Geolocation not supported');
       setPermission('denied');
       return;
     }
 
-    // Try to get position - this will trigger permission prompt
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
+
+        positionRef.current = { lat, lng, timestamp: Date.now() };
         setLatitude(lat);
         setLongitude(lng);
         setPermission('granted');
         setError(null);
         sendLocationUpdate(lat, lng);
-        // Don't call startTracking here - let the useEffect handle it
+        startTracking();
       },
       (err) => {
-        console.error('Permission request error:', err);
         if (err.code === 1) {
           setPermission('denied');
-          setError('Location permission denied. Please enable location access in your browser settings.');
-        } else if (err.code === 2) {
-          setError('Location unavailable. Please check your device settings.');
+          setError('Permission denied. Please enable location access in browser settings.');
         } else {
-          setError('Timeout while requesting location. Please try again.');
+          setPermission('prompt');
+          setError('Location services unavailable.');
         }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
     );
-  }, [sendLocationUpdate]);
+  }, [sendLocationUpdate, startTracking]);
 
-  // Initial permission check - only run once
   useEffect(() => {
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
 
     if (!navigator.geolocation) {
-      setError('Geolocation is not supported by this browser');
       setPermission('denied');
       return;
     }
 
-    // Check initial permission status without prompting
     navigator.geolocation.getCurrentPosition(
-      () => {
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        positionRef.current = { lat, lng, timestamp: Date.now() };
+        setLatitude(lat);
+        setLongitude(lng);
         setPermission('granted');
+        startTracking();
       },
       (err) => {
         if (err.code === 1) {
@@ -157,23 +160,33 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
           setPermission('prompt');
         }
       },
-      { enableHighAccuracy: false, timeout: 100, maximumAge: Infinity }
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000,
+      }
     );
-  }, []);
-
-  // Start/stop tracking based on permission - separate from initialization
-  useEffect(() => {
-    if (permission === 'granted' && !isTracking) {
-      startTracking();
-    } else if (permission === 'denied' && isTracking) {
-      stopTracking();
-    }
 
     return () => {
-      stopTracking();
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      if (uiIntervalRef.current) {
+        clearInterval(uiIntervalRef.current);
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [permission]); // Only depend on permission, not isTracking/startTracking/stopTracking
+  }, [startTracking]);
+
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      if (uiIntervalRef.current) {
+        clearInterval(uiIntervalRef.current);
+      }
+    };
+  }, []);
 
   return (
     <LocationContext.Provider

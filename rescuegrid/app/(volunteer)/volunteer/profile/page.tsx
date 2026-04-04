@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import Button from '@/components/ui/Button';
 import StatusBadge from '@/components/ui/StatusBadge';
 
@@ -14,6 +17,22 @@ interface Volunteer {
   mobile_no: string;
 }
 
+interface ResourceAllocation {
+  id: string;
+  resource_id: string;
+  quantity_allocated: number;
+  status: string;
+  notes?: string;
+  resource: {
+    name: string;
+    type: string;
+    unit: string;
+  };
+  assignment?: {
+    task: string;
+  };
+}
+
 export default function VolunteerProfilePage() {
   const [volunteer, setVolunteer] = useState<Volunteer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,6 +41,9 @@ export default function VolunteerProfilePage() {
   const [editSkills, setEditSkills] = useState('');
   const [editEquipment, setEditEquipment] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [resources, setResources] = useState<ResourceAllocation[]>([]);
+  const [resourcesLoading, setResourcesLoading] = useState(true);
+  const resourcesChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -38,6 +60,49 @@ export default function VolunteerProfilePage() {
     };
 
     fetchProfile();
+  }, []);
+
+  // Fetch resources and subscribe to real-time updates
+  useEffect(() => {
+    const fetchResources = async () => {
+      try {
+        const res = await fetch('/api/volunteer/resources');
+        if (res.ok) {
+          const data = await res.json();
+          setResources(data.mine || []);
+        }
+      } catch (err) {
+        console.error('Error fetching resources:', err);
+      } finally {
+        setResourcesLoading(false);
+      }
+    };
+
+    fetchResources();
+
+    // Subscribe to real-time resource allocation updates
+    const supabase = createClient();
+    resourcesChannelRef.current = supabase
+      .channel('profile-resource-allocations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'resource_allocation',
+        },
+        () => {
+          // Refetch resources when any allocation changes
+          fetchResources();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (resourcesChannelRef.current) {
+        supabase.removeChannel(resourcesChannelRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -267,6 +332,77 @@ export default function VolunteerProfilePage() {
           </div>
         </div>
       )}
+
+      {/* Resource Allocations Section */}
+      <div className="bg-surface-2 p-4 mt-4" style={{ clipPath: 'var(--clip-tactical)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <p className="font-mono text-[10px] text-dim uppercase">MY RESOURCES</p>
+          {resources.length > 0 && (
+            <span className="font-mono text-[10px] text-orange">{resources.length} ACTIVE</span>
+          )}
+        </div>
+
+        {resourcesLoading ? (
+          <div className="text-center py-4">
+            <span className="font-mono text-[10px] text-dim">Loading resources...</span>
+          </div>
+        ) : resources.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="font-mono text-[10px] text-dim">No active resource allocations</p>
+            <Link 
+              href="/volunteer/resources" 
+              className="font-mono text-[10px] text-orange hover:underline mt-2 inline-block"
+            >
+              View Resources Page →
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {resources.slice(0, 5).map((allocation) => (
+              <div key={allocation.id} className="flex items-center justify-between p-2 bg-surface-3">
+                <div>
+                  <p className="font-display text-[13px] text-ink">{allocation.resource?.name}</p>
+                  <p className="font-mono text-[9px] text-dim">
+                    {allocation.quantity_allocated} {allocation.resource?.unit}
+                    {allocation.assignment?.task && ` · ${allocation.assignment.task}`}
+                  </p>
+                </div>
+                <span className={`font-mono text-[9px] uppercase px-2 py-1 ${
+                  allocation.status === 'in_use' 
+                    ? 'bg-orange/20 text-orange' 
+                    : 'bg-ops/20 text-ops'
+                }`}>
+                  {allocation.status === 'in_use' ? 'IN USE' : 'ALLOCATED'}
+                </span>
+              </div>
+            ))}
+            {resources.length > 5 && (
+              <p className="font-mono text-[10px] text-dim text-center">
+                +{resources.length - 5} more resources
+              </p>
+            )}
+            <Link 
+              href="/volunteer/resources" 
+              className="block w-full text-center py-2 font-mono text-[10px] text-orange border border-orange/30 hover:bg-orange/10 transition-colors"
+            >
+              VIEW ALL RESOURCES →
+            </Link>
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={async () => {
+          if (confirm('Logout from RescueGrid?')) {
+            await fetch('/api/volunteer/logout', { method: 'POST' });
+            window.location.href = '/volunteer/login';
+          }
+        }}
+        className="w-full mt-4 py-3 bg-surface-2 text-alert font-mono text-[11px] uppercase tracking-wider hover:bg-alert/10 transition-colors"
+        style={{ clipPath: 'var(--clip-tactical)' }}
+      >
+        LOGOUT
+      </button>
 
       <div className="bg-surface-2 p-4 mt-4" style={{ clipPath: 'var(--clip-tactical)' }}>
         <p className="font-mono text-[10px] text-dim uppercase mb-2">PUSH NOTIFICATIONS</p>

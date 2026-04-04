@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import VolunteerList from "./VolunteerList";
 
 const SITUATION_TYPES = [
   { key: "food", label: "Food", color: "bg-ops" },
@@ -272,6 +273,8 @@ export default function LeftSidebar({
             })}
           </div>
         </section>
+
+        <VolunteerList />
       </div>
     </aside>
   );

@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { LocationProvider } from '@/components/volunteer/LocationProvider';
-import LocationPermissionModal from '@/components/volunteer/LocationPermissionModal';
 
 interface ActiveAssignment {
   id: string;
@@ -29,6 +28,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
   const [volunteerId, setVolunteerId] = useState<string | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<ActiveAssignment | null>(null);
   const [pendingCount, setPendingCount] = useState<PendingCount>({ queue: 0 });
+  const [resourceCount, setResourceCount] = useState(0);
   const [currentTime, setCurrentTime] = useState('');
 
   useEffect(() => {
@@ -60,19 +60,26 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
 
   const fetchData = useCallback(async () => {
     try {
-      const [assignRes, queueRes] = await Promise.all([
+      const [assignRes, queueRes, resourcesRes] = await Promise.all([
         fetch('/api/volunteer/assignment/active'),
         fetch('/api/volunteer/assignment/queue'),
+        fetch('/api/volunteer/resources'),
       ]);
-      
+
       if (assignRes.ok) {
         const data = await assignRes.json();
         setActiveAssignment(data);
       }
-      
+
       if (queueRes.ok) {
         const data = await queueRes.json();
         setPendingCount({ queue: Array.isArray(data) ? data.length : 0 });
+      }
+
+      if (resourcesRes.ok) {
+        const data = await resourcesRes.json();
+        const count = (data.mine?.length || 0) + (data.taskForce?.length || 0);
+        setResourceCount(count);
       }
     } catch {}
   }, []);
@@ -93,6 +100,18 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
           schema: 'public',
           table: 'assignment',
           filter: `assigned_to_volunteer=eq.${volunteerId}`,
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes' as const,
+        {
+          event: '*',
+          schema: 'public',
+          table: 'resource_allocation',
+          filter: `volunteer_id=eq.${volunteerId}`,
         },
         () => {
           fetchData();
@@ -120,8 +139,8 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
   };
 
   const tabs = [
-    { 
-      href: '/volunteer/missions', 
+    {
+      href: '/volunteer/missions',
       label: 'Tasks',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -131,8 +150,8 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
       ),
       badge: pendingCount.queue > 0 ? pendingCount.queue : null
     },
-    { 
-      href: '/volunteer/active', 
+    {
+      href: '/volunteer/active',
       label: 'Active',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -143,8 +162,8 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
       badge: activeAssignment ? '●' : null,
       badgeType: 'live' as const
     },
-    { 
-      href: '/volunteer/inbox', 
+    {
+      href: '/volunteer/inbox',
       label: 'Inbox',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -153,8 +172,8 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
       ),
       badge: null
     },
-    { 
-      href: '/volunteer/map', 
+    {
+      href: '/volunteer/map',
       label: 'Map',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -165,8 +184,20 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
       ),
       badge: null
     },
-    { 
-      href: '/volunteer/profile', 
+    {
+      href: '/volunteer/resources',
+      label: 'Resources',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+          <polyline points="3.27,6.96 12,12.01 20.73,6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      ),
+      badge: resourceCount > 0 ? resourceCount : null
+    },
+    {
+      href: '/volunteer/profile',
       label: 'Profile',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -270,7 +301,6 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
   return (
     <LocationProvider>
       {content}
-      <LocationPermissionModal />
     </LocationProvider>
   );
 }

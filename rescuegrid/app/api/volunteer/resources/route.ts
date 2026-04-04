@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getVolunteerFromDb } from "@/lib/auth/getVolunteer";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export async function GET() {
   try {
@@ -13,7 +13,7 @@ export async function GET() {
       );
     }
     
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     
     const { data: myAllocations } = await supabase
       .from("resource_allocation")
@@ -50,12 +50,13 @@ export async function GET() {
       .from("resource_allocation")
       .select(`
         *,
-        resource:resource_id(name, type, unit)
+        resource:resource_id(name, type, unit),
+        assignment:assignment_id(task)
       `)
       .eq("volunteer_id", volunteer.id)
-      .in("status", ["consumed", "returned", "lost"])
+      .not("status", "in", '("allocated","in_use")')
       .order("updated_at", { ascending: false })
-      .limit(20);
+      .limit(50);
     
     return NextResponse.json({
       mine: myAllocations || [],
