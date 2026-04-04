@@ -46,12 +46,6 @@ export default function ReportTypePage() {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
 
-  const MIN_ACCEPTABLE_ACCURACY = 500;
-  const GPS_TIMEOUT = 30000;
-  const watchIdRef = useRef<number | null>(null);
-  const gpsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const bestPositionRef = useRef<GeolocationPosition | null>(null);
-
   const reverseGeocode = async (lng: number, lat: number) => {
     try {
       const res = await fetch(
@@ -131,27 +125,12 @@ export default function ReportTypePage() {
       return;
     }
 
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    if (gpsTimeoutRef.current) {
-      clearTimeout(gpsTimeoutRef.current);
-      gpsTimeoutRef.current = null;
-    }
-
     setLocating(true);
     setError("");
-    bestPositionRef.current = null;
 
-    gpsTimeoutRef.current = setTimeout(() => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-
-      if (bestPositionRef.current) {
-        const { longitude, latitude, accuracy: acc } = bestPositionRef.current.coords;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { longitude, latitude, accuracy: acc } = pos.coords;
         setAccuracy(acc);
         setLocating(false);
         if (mapInitializedRef.current) {
@@ -162,55 +141,8 @@ export default function ReportTypePage() {
           reverseGeocode(longitude, latitude);
           setTimeout(() => initMap(longitude, latitude), 100);
         }
-      } else {
-        setError("Could not get location. Please check GPS settings.");
-        setLocating(false);
-        setPlaceName("Tap map to set location");
-      }
-    }, GPS_TIMEOUT);
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const { longitude, latitude, accuracy: acc } = pos.coords;
-        console.log(`GPS Update: accuracy=${acc}m`);
-
-        if (!bestPositionRef.current || acc < bestPositionRef.current.coords.accuracy) {
-          bestPositionRef.current = pos;
-        }
-
-        setAccuracy(acc);
-
-        if (acc <= MIN_ACCEPTABLE_ACCURACY) {
-          if (watchIdRef.current !== null) {
-            navigator.geolocation.clearWatch(watchIdRef.current);
-            watchIdRef.current = null;
-          }
-          if (gpsTimeoutRef.current) {
-            clearTimeout(gpsTimeoutRef.current);
-            gpsTimeoutRef.current = null;
-          }
-
-          setLocating(false);
-          if (mapInitializedRef.current) {
-            updateMapLocation(longitude, latitude);
-          } else {
-            setLng(longitude);
-            setLat(latitude);
-            reverseGeocode(longitude, latitude);
-            setTimeout(() => initMap(longitude, latitude), 100);
-          }
-        }
       },
       (err) => {
-        if (watchIdRef.current !== null) {
-          navigator.geolocation.clearWatch(watchIdRef.current);
-          watchIdRef.current = null;
-        }
-        if (gpsTimeoutRef.current) {
-          clearTimeout(gpsTimeoutRef.current);
-          gpsTimeoutRef.current = null;
-        }
-
         if (err.code === 1) {
           setError("Location permission denied. Please enable in browser settings.");
         } else if (err.code === 2) {
@@ -232,14 +164,6 @@ export default function ReportTypePage() {
   useEffect(() => {
     requestLocation();
     return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      if (gpsTimeoutRef.current) {
-        clearTimeout(gpsTimeoutRef.current);
-        gpsTimeoutRef.current = null;
-      }
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -320,16 +244,9 @@ export default function ReportTypePage() {
             className="w-full h-[160px] rounded overflow-hidden border border-border-dim"
           />
           <div className="mt-2 flex items-center justify-between">
-            <div className="flex flex-col gap-0.5">
-              <p className="font-mono text-[11px] text-dim uppercase tracking-wide">
-                📍 {placeName || (locating ? "Getting location..." : "Tap map to set location")}
-              </p>
-              {accuracy !== null && (
-                <p className={`font-mono text-[10px] ${accuracy <= MIN_ACCEPTABLE_ACCURACY ? "text-green" : "text-amber"}`}>
-                  Accuracy: {accuracy.toFixed(0)}m {accuracy <= MIN_ACCEPTABLE_ACCURACY ? "✓" : "(waiting for <100m)"}
-                </p>
-              )}
-            </div>
+            <p className="font-mono text-[11px] text-dim uppercase tracking-wide">
+              📍 {placeName || (locating ? "Getting location..." : "Tap map to set location")}
+            </p>
             <button
               onClick={requestLocation}
               disabled={locating}

@@ -29,66 +29,23 @@ export function useSOSSMS() {
         return;
       }
 
-      let bestPosition: GeolocationPosition | null = null;
-      let watchId: number | null = null;
-      const GPS_TIMEOUT = 25000; // 25 seconds max wait
-      const MIN_ACCURACY = 500; // Try to get at least 500m accuracy (mobile-friendly)
+      setGpsStatus("Getting location...");
 
-      setGpsStatus("Searching for GPS satellites...");
-
-      // Timeout - use best position we got
-      const timeoutId = setTimeout(() => {
-        if (watchId !== null) {
-          navigator.geolocation.clearWatch(watchId);
-        }
-        if (bestPosition) {
-          console.log(`Using best accuracy: ${bestPosition.coords.accuracy}m`);
-          resolve({
-            latitude: bestPosition.coords.latitude,
-            longitude: bestPosition.coords.longitude,
-            accuracy: bestPosition.coords.accuracy,
-          });
-        } else {
-          reject(new Error("GPS timeout"));
-        }
-      }, GPS_TIMEOUT);
-
-      // Use watchPosition to keep GPS radio warm and wait for better accuracy
-      watchId = navigator.geolocation.watchPosition(
+      navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const acc = pos.coords.accuracy;
-          console.log(`GPS update: ${acc}m accuracy`);
-
-          // Keep track of best position
-          if (!bestPosition || acc < bestPosition.coords.accuracy) {
-            bestPosition = pos;
-            setGpsStatus(`Accuracy: ${Math.round(acc)}m${acc <= MIN_ACCURACY ? " ✓" : " (improving...)"}`);
-          }
-
-          // If we got good accuracy, stop and use it immediately
-          if (acc <= MIN_ACCURACY) {
-            if (watchId !== null) {
-              navigator.geolocation.clearWatch(watchId);
-            }
-            clearTimeout(timeoutId);
-            resolve({
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude,
-              accuracy: pos.coords.accuracy,
-            });
-          }
+          resolve({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          });
         },
         (err) => {
-          if (watchId !== null) {
-            navigator.geolocation.clearWatch(watchId);
-          }
-          clearTimeout(timeoutId);
           reject(err);
         },
         {
-          enableHighAccuracy: true,  // Force GPS hardware
+          enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 0,  // No cached positions
+          maximumAge: 0,
         }
       );
     });
