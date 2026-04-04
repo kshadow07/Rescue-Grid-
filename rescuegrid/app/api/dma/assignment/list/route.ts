@@ -1,19 +1,26 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const reportId = searchParams.get('report_id');
     const supabase = createServiceClient();
 
-    const { data: assignments, error } = await supabase
+    let query = supabase
       .from('assignment')
       .select(`
         *,
         volunteer:assigned_to_volunteer(id, name),
         task_force:assigned_to_taskforce(id, name),
         victim_report:victim_report_id(id, situation, city, district)
-      `)
-      .order('created_at', { ascending: false });
+      `);
+
+    if (reportId) {
+      query = query.eq('victim_report_id', reportId);
+    }
+
+    const { data: assignments, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
 

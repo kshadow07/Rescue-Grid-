@@ -63,26 +63,26 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
   const [activeMissions, setActiveMissions] = useState<any[]>([]);
   const [counters, setCounters] = useState<MissionCounter>({ queue: 0, active: 0, duplicate: 0, done: 0 });
   const [loading, setLoading] = useState(true);
-  const [assignment, setAssignment] = useState<any>(null);
+  const [assignments, setAssignments] = useState<any[]>([]);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
-    const fetchAssignment = async () => {
+    const fetchReportAssignments = async () => {
       if (!selectedReport) {
-        setAssignment(null);
+        setAssignments([]);
         return;
       }
       try {
         const res = await fetch(`/api/dma/assignment/list?report_id=${selectedReport.id}`);
         if (res.ok) {
           const data = await res.json();
-          setAssignment(Array.isArray(data) && data.length > 0 ? data[0] : null);
+          setAssignments(Array.isArray(data) ? data : []);
         }
       } catch {
-        setAssignment(null);
+        setAssignments([]);
       }
     };
-    fetchAssignment();
+    fetchReportAssignments();
   }, [selectedReport]);
 
   useEffect(() => {
@@ -148,20 +148,26 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
         }
       )
       .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'assignment',
-        },
-        (payload) => {
-           // Refresh counters and assignment if it matches selected report
-           fetchData();
-           if (selectedReport && (payload.new as any).victim_report_id === selectedReport.id) {
-             setAssignment(payload.eventType === 'DELETE' ? null : payload.new);
-           }
-        }
-      )
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'assignment',
+          },
+          (payload) => {
+             // Refresh counters and assignments if it matches selected report
+             fetchData();
+             if (selectedReport && (payload.new as any).victim_report_id === selectedReport.id) {
+               if (payload.eventType === 'INSERT') {
+                 setAssignments(prev => [payload.new, ...prev]);
+               } else if (payload.eventType === 'UPDATE') {
+                 setAssignments(prev => prev.map(a => a.id === payload.new.id ? payload.new : a));
+               } else if (payload.eventType === 'DELETE') {
+                 setAssignments(prev => prev.filter(a => a.id !== payload.old.id));
+               }
+             }
+          }
+        )
       .subscribe();
 
     return () => {
@@ -268,28 +274,33 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                   </div>
                 </div>
                 
-                {assignment && (
-                  <div className="mt-4 p-3 bg-ops/5 border border-ops/20 rounded-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-mono text-[10px] text-ops font-bold uppercase tracking-widest">ASSIGNED UNIT</div>
-                      <StatusBadge status={assignment.status} />
-                    </div>
-                    <div className="font-display text-[14px] font-bold text-ink mb-1">
-                      {assignment.task}
-                    </div>
-                    {(assignment.volunteer_name || assignment.taskforce_name) && (
-                      <div className="font-mono text-[10px] text-orange uppercase font-bold mt-1 mb-1">
-                        BY: {assignment.volunteer_name || assignment.taskforce_name}
+                {assignments.length > 0 && (
+                  <div className="space-y-3 mt-4">
+                    <div className="font-mono text-[10px] text-dim uppercase tracking-widest">Active Assignments ({assignments.length})</div>
+                    {assignments.map((assignment) => (
+                      <div key={assignment.id} className="p-3 bg-ops/5 border border-ops/20 rounded-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="font-mono text-[10px] text-ops font-bold uppercase tracking-widest">ASSIGNED UNIT</div>
+                          <StatusBadge status={assignment.status} />
+                        </div>
+                        <div className="font-display text-[14px] font-bold text-ink mb-1">
+                          {assignment.task}
+                        </div>
+                        {(assignment.volunteer_name || assignment.taskforce_name) && (
+                          <div className="font-mono text-[10px] text-orange uppercase font-bold mt-1 mb-1">
+                            BY: {assignment.volunteer_name || assignment.taskforce_name}
+                          </div>
+                        )}
+                        <div className="font-mono text-[10px] text-dim">
+                          ID: {assignment.id.slice(0, 8)}
+                        </div>
                       </div>
-                    )}
-                    <div className="font-mono text-[10px] text-dim">
-                      ID: {assignment.id.slice(0, 8)}
-                    </div>
+                    ))}
                   </div>
                 )}
 
                 <div className="flex gap-2 pt-2">
-                  {!assignment ? (
+                  {assignments.filter(a => a.status !== 'completed' && a.status !== 'failed').length === 0 ? (
                     <Button
                       variant="primary"
                       className="flex-1 py-3"
