@@ -1,5 +1,5 @@
-import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { createServiceClient } from '@/lib/supabase/service';
 
 export async function getVolunteer() {
   const cookieStore = await cookies();
@@ -19,25 +19,20 @@ export async function getVolunteerFromDb() {
   const session = await getVolunteer();
   if (!session?.volunteer_id) return null;
 
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll() {},
-      },
-    }
-  );
+  // Use service client to bypass RLS — volunteer app uses cookie-based auth,
+  // not Supabase Auth, so auth.uid() is null and RLS blocks anon reads.
+  const supabase = createServiceClient();
 
-  const { data: volunteer } = await supabase
+  const { data: volunteer, error } = await supabase
     .from('volunteer')
     .select('*')
     .eq('id', session.volunteer_id)
     .single();
+
+  if (error) {
+    console.error('getVolunteerFromDb error:', error);
+    return null;
+  }
 
   return volunteer;
 }

@@ -1,8 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Button from "@/components/ui/Button";
+
+interface ResourceAllocation {
+  id: string;
+  quantity_allocated: number;
+  status: string;
+  resource: {
+    name: string;
+    type: string;
+    unit: string;
+  };
+}
 
 interface Responder {
   id: string;
@@ -11,6 +24,7 @@ interface Responder {
   skills: string;
   status: string;
   last_seen: string | null;
+  resource_allocations?: ResourceAllocation[];
 }
 
 interface MissionCounter {
@@ -45,6 +59,7 @@ export default function RightSidebar({ selectedReport, onCreateAssignment }: Rig
   const [responders, setResponders] = useState<Responder[]>([]);
   const [counters, setCounters] = useState<MissionCounter>({ queue: 0, active: 0, duplicate: 0, done: 0 });
   const [loading, setLoading] = useState(true);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,6 +85,46 @@ export default function RightSidebar({ selectedReport, onCreateAssignment }: Rig
     };
 
     fetchData();
+
+    // Subscribe to real-time volunteer updates
+    const supabase = createClient();
+    channelRef.current = supabase
+      .channel('right-sidebar-volunteer-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'volunteer',
+        },
+        (payload) => {
+          setResponders((current) => {
+            if (payload.eventType === 'UPDATE') {
+              const updated = payload.new as Responder;
+              return current.map((r) =>
+                r.id === updated.id ? { ...r, ...updated } : r
+              );
+            } else if (payload.eventType === 'INSERT') {
+              const newResponder = payload.new as Responder;
+              // Check if already exists to avoid duplicates
+              if (!current.find((r) => r.id === newResponder.id)) {
+                return [...current, newResponder];
+              }
+              return current;
+            } else if (payload.eventType === 'DELETE') {
+              return current.filter((r) => r.id !== payload.old.id);
+            }
+            return current;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
   }, []);
 
   const sortedResponders = [...responders].sort((a, b) => {
@@ -175,6 +230,7 @@ export default function RightSidebar({ selectedReport, onCreateAssignment }: Rig
             <div className="space-y-3">
               {sortedResponders.map((r) => {
                 const badgeStatus = getResponderStatus(r.status);
+                const allocations = r.resource_allocations || [];
                 return (
                   <div
                     key={r.id}
@@ -196,6 +252,17 @@ export default function RightSidebar({ selectedReport, onCreateAssignment }: Rig
                       <div className="font-mono text-[10px] text-dim mt-0.5">
                         last seen: {timeAgo(r.last_seen)}
                       </div>
+                      {allocations.length > 0 && (
+                        <div className="mt-1.5 space-y-1">
+                          {allocations.map((alloc) => (
+                            <div key={alloc.id} className="px-2 py-1 bg-ops/10 border border-ops/20">
+                              <span className="font-mono text-[9px] text-ops uppercase">
+                                📦 {alloc.quantity_allocated} {alloc.resource.unit} {alloc.resource.name}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

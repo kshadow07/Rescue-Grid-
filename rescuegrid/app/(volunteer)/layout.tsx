@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { LocationProvider } from '@/components/volunteer/LocationProvider';
 
 interface ActiveAssignment {
   id: string;
@@ -27,6 +28,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
   const [volunteerId, setVolunteerId] = useState<string | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<ActiveAssignment | null>(null);
   const [pendingCount, setPendingCount] = useState<PendingCount>({ queue: 0 });
+  const [resourceCount, setResourceCount] = useState(0);
   const [currentTime, setCurrentTime] = useState('');
 
   useEffect(() => {
@@ -58,19 +60,26 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
 
   const fetchData = useCallback(async () => {
     try {
-      const [assignRes, queueRes] = await Promise.all([
+      const [assignRes, queueRes, resourcesRes] = await Promise.all([
         fetch('/api/volunteer/assignment/active'),
         fetch('/api/volunteer/assignment/queue'),
+        fetch('/api/volunteer/resources'),
       ]);
-      
+
       if (assignRes.ok) {
         const data = await assignRes.json();
         setActiveAssignment(data);
       }
-      
+
       if (queueRes.ok) {
         const data = await queueRes.json();
         setPendingCount({ queue: Array.isArray(data) ? data.length : 0 });
+      }
+
+      if (resourcesRes.ok) {
+        const data = await resourcesRes.json();
+        const count = (data.mine?.length || 0) + (data.taskForce?.length || 0);
+        setResourceCount(count);
       }
     } catch {}
   }, []);
@@ -91,6 +100,18 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
           schema: 'public',
           table: 'assignment',
           filter: `assigned_to_volunteer=eq.${volunteerId}`,
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes' as const,
+        {
+          event: '*',
+          schema: 'public',
+          table: 'resource_allocation',
+          filter: `volunteer_id=eq.${volunteerId}`,
         },
         () => {
           fetchData();
@@ -118,8 +139,8 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
   };
 
   const tabs = [
-    { 
-      href: '/volunteer/missions', 
+    {
+      href: '/volunteer/missions',
       label: 'Tasks',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -129,8 +150,8 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
       ),
       badge: pendingCount.queue > 0 ? pendingCount.queue : null
     },
-    { 
-      href: '/volunteer/active', 
+    {
+      href: '/volunteer/active',
       label: 'Active',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -141,8 +162,8 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
       badge: activeAssignment ? '●' : null,
       badgeType: 'live' as const
     },
-    { 
-      href: '/volunteer/inbox', 
+    {
+      href: '/volunteer/inbox',
       label: 'Inbox',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -151,8 +172,8 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
       ),
       badge: null
     },
-    { 
-      href: '/volunteer/map', 
+    {
+      href: '/volunteer/map',
       label: 'Map',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -163,8 +184,20 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
       ),
       badge: null
     },
-    { 
-      href: '/volunteer/profile', 
+    {
+      href: '/volunteer/resources',
+      label: 'Resources',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+          <polyline points="3.27,6.96 12,12.01 20.73,6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      ),
+      badge: resourceCount > 0 ? resourceCount : null
+    },
+    {
+      href: '/volunteer/profile',
       label: 'Profile',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -180,7 +213,10 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
     return pathname === href;
   };
 
-  return (
+  const hideNav = pathname === '/volunteer/login' || pathname === '/volunteer/login/verify';
+  const isAuthPage = pathname === '/volunteer/login' || pathname === '/volunteer/login/verify';
+
+  const content = (
     <div className="min-h-screen bg-[#07080A] flex flex-col">
       <div className="h-10 bg-[#0D0F12] border-b border-[rgba(255,255,255,0.06)] flex items-center justify-between px-4">
         <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#8A8F99] tracking-wider">{currentTime}</span>
@@ -217,8 +253,9 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
         </Link>
       )}
 
-      <main className="flex-1 overflow-y-auto pb-20">{children}</main>
+      <main className={`flex-1 overflow-y-auto ${hideNav ? '' : 'pb-20'}`}>{children}</main>
 
+      {!hideNav && (
       <nav className="fixed bottom-0 left-0 right-0 h-[68px] bg-[#0D0F12] border-t border-[rgba(255,255,255,0.06)] flex items-stretch shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
         {tabs.map((tab) => {
           const active = isActive(tab.href);
@@ -252,6 +289,18 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
           );
         })}
       </nav>
+      )}
     </div>
+  );
+
+  // Don't wrap auth pages with LocationProvider
+  if (isAuthPage) {
+    return content;
+  }
+
+  return (
+    <LocationProvider>
+      {content}
+    </LocationProvider>
   );
 }

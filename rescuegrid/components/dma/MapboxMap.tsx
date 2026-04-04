@@ -5,6 +5,8 @@ import Map, { Marker, Popup, NavigationControl, ScaleControl, Source, Layer } fr
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MapPin } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -237,6 +239,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
   const [hoveredVolunteer, setHoveredVolunteer] = useState<Volunteer | null>(null);
   const [hoveredPOI, setHoveredPOI] = useState<POIPlace | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ lng: number; lat: number } | null>(null);
+  const [volunteersVersion, setVolunteersVersion] = useState(0); // Used to trigger re-renders on realtime updates
 
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const filtersRef = useRef(filters);
@@ -500,6 +503,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
     }
   }, []);
 
+  // Real-time volunteer subscription
   useEffect(() => {
     if (dataFetchedRef.current) return;
     dataFetchedRef.current = true;
@@ -512,6 +516,49 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
       volunteersRef.current = Array.isArray(vols) ? vols : [];
       setTimeout(() => fitBoundsToDataRef.current?.(), 500);
     });
+
+    // Subscribe to real-time volunteer updates
+    const supabase = createClient();
+    const channel: RealtimeChannel = supabase
+      .channel('dma-volunteer-locations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'volunteer',
+        },
+        (payload) => {
+          if (payload.eventType === 'UPDATE') {
+            const updatedVolunteer = payload.new as Volunteer;
+            // Update the volunteers array
+            const index = volunteersRef.current.findIndex(v => v.id === updatedVolunteer.id);
+            if (index !== -1) {
+              volunteersRef.current[index] = { ...volunteersRef.current[index], ...updatedVolunteer };
+            } else if (updatedVolunteer.latitude && updatedVolunteer.longitude) {
+              // New volunteer with location
+              volunteersRef.current.push(updatedVolunteer);
+            }
+            // Force re-render by updating a state variable
+            setVolunteersVersion(v => v + 1);
+          } else if (payload.eventType === 'INSERT') {
+            const newVolunteer = payload.new as Volunteer;
+            if (newVolunteer.latitude && newVolunteer.longitude) {
+              volunteersRef.current.push(newVolunteer);
+              setVolunteersVersion(v => v + 1);
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = payload.old.id;
+            volunteersRef.current = volunteersRef.current.filter(v => v.id !== deletedId);
+            setVolunteersVersion(v => v + 1);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -579,7 +626,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
 
         {layers.volunteers && volunteersRef.current.map((vol) => (
           <Marker
-            key={vol.id}
+            key={`${vol.id}-${volunteersVersion}`}
             longitude={vol.longitude}
             latitude={vol.latitude}
             anchor="bottom"
