@@ -45,6 +45,14 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
+    // Update linked victim report status to 'assigned'
+    if (victim_report_id) {
+      await supabase
+        .from('victim_report')
+        .update({ status: 'assigned' })
+        .eq('id', victim_report_id);
+    }
+
     if (assigned_to_volunteer) {
       const { data: vol } = await supabase
         .from('volunteer')

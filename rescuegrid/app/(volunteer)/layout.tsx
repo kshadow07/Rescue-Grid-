@@ -85,8 +85,10 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (volunteerId) {
+      fetchData();
+    }
+  }, [fetchData, volunteerId]);
 
   useEffect(() => {
     if (!volunteerId) return;
