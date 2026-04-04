@@ -28,7 +28,7 @@ const NAV_TABS = [
 export default function Topbar({ loginTime }: TopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const supabase = createClient();
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const [counters, setCounters] = useState<LiveCounters>({ critical: 0, active: 0, vols: 0 });
   const [loading, setLoading] = useState(true);
@@ -48,6 +48,11 @@ export default function Topbar({ loginTime }: TopbarProps) {
   }, []);
 
   useEffect(() => {
+    if (!supabaseRef.current) {
+      supabaseRef.current = createClient();
+    }
+    const supabase = supabaseRef.current;
+    
     fetchCounters();
 
     channelRef.current = supabase
@@ -88,11 +93,11 @@ export default function Topbar({ loginTime }: TopbarProps) {
       .subscribe();
 
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+      if (channelRef.current && supabaseRef.current) {
+        supabaseRef.current.removeChannel(channelRef.current);
       }
     };
-  }, [supabase, fetchCounters]);
+  }, [fetchCounters]);
 
   useEffect(() => {
     const updateTimer = () => {

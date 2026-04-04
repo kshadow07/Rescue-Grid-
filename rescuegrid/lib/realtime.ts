@@ -19,16 +19,20 @@ export function useRealtimeSubscription<T = Record<string, unknown>>(
   deps: React.DependencyList = []
 ) {
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const supabase = createClient();
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
 
   const cleanup = useCallback(() => {
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
+    if (channelRef.current && supabaseRef.current) {
+      supabaseRef.current.removeChannel(channelRef.current);
       channelRef.current = null;
     }
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
+    if (!supabaseRef.current) {
+      supabaseRef.current = createClient();
+    }
+    const supabase = supabaseRef.current;
     cleanup();
 
     if (configs.length === 0) return;
