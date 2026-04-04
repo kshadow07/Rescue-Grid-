@@ -32,7 +32,7 @@ export function useSOSSMS() {
       let bestPosition: GeolocationPosition | null = null;
       let watchId: number | null = null;
       const GPS_TIMEOUT = 25000; // 25 seconds max wait
-      const MIN_ACCURACY = 100; // Try to get at least 100m accuracy
+      const MIN_ACCURACY = 500; // Try to get at least 500m accuracy (mobile-friendly)
 
       setGpsStatus("Searching for GPS satellites...");
 

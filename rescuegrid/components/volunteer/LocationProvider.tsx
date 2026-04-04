@@ -17,7 +17,7 @@ const LocationContext = createContext<LocationContextType | undefined>(undefined
 
 const UI_UPDATE_INTERVAL = 5000;
 const DB_SYNC_THROTTLE = 30000;
-const MIN_ACCEPTABLE_ACCURACY = 100; // meters - wait until we get at least this accuracy
+const MIN_ACCEPTABLE_ACCURACY = 500; // meters - wait until we get at least this accuracy (mobile-friendly)
 const GPS_TIMEOUT = 30000; // 30 seconds max wait for GPS
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {

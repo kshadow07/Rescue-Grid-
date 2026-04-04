@@ -6,7 +6,7 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { phone_no, latitude, longitude, situation, custom_message } = body;
+    const { phone_no, latitude, longitude, accuracy, situation, custom_message } = body;
 
     if (!phone_no || !latitude || !longitude || !situation) {
       return NextResponse.json(
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
         phone_no,
         latitude,
         longitude,
+        accuracy: accuracy || null,
         situation,
         custom_message: custom_message || null,
         city: city || null,
