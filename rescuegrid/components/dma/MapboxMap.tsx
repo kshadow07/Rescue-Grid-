@@ -5,6 +5,9 @@ import Map, { Marker, Popup, NavigationControl, ScaleControl, Source, Layer } fr
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MapPin } from "lucide-react";
+import { useNeeds, VictimReport } from "@/hooks/useNeeds";
+import { useVolunteers, Volunteer } from "@/hooks/useVolunteers";
+import { useAssignments } from "@/hooks/useAssignments";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -23,35 +26,11 @@ const STATUS_COLORS: Record<string, string> = {
   open: "#2ECC71",
   active: "#FF6B2B",
   assigned: "#3B8BFF",
+  en_route: "#FF6B2B",
+  arrived: "#2ECC71",
   resolved: "#6B7280",
   duplicate: "#F5A623",
 };
-
-interface VictimReport {
-  id: string;
-  phone_no: string;
-  latitude: number;
-  longitude: number;
-  city: string;
-  district: string;
-  situation: string;
-  urgency: string;
-  status: string;
-  created_at: string;
-  custom_message?: string;
-}
-
-interface Volunteer {
-  id: string;
-  name: string;
-  mobile_no?: string;
-  latitude: number;
-  longitude: number;
-  status: string;
-  type: string;
-  skills?: string;
-  equipment?: string;
-}
 
 interface POIPlace {
   id: string;
@@ -95,6 +74,8 @@ function VictimMarker({
 }) {
   const style = SITUATION_STYLES[report.situation] || SITUATION_STYLES.rescue;
   const isCritical = report.status === "open" && report.urgency === "critical";
+  const statusColor = STATUS_COLORS[report.status] || style.color;
+  const isAssigned = report.status === "assigned" || report.status === "en_route" || report.status === "arrived";
 
   return (
     <div
@@ -109,6 +90,12 @@ function VictimMarker({
           style={{ backgroundColor: style.color }}
         />
       )}
+      {isAssigned && (
+        <div 
+          className="absolute -inset-2 rounded-full border-2 border-dashed animate-[spin_10s_linear_infinite]"
+          style={{ borderColor: "#FF6B2B" }}
+        />
+      )}
       <div 
         className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${isSelected ? "scale-125 z-50" : ""}`}
         style={{ backgroundColor: style.color, boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}
@@ -117,6 +104,12 @@ function VictimMarker({
         <div 
           className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px]"
           style={{ borderTopColor: style.color }}
+        />
+        
+        {/* Status indicator dot */}
+        <div 
+          className="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-[#13161B]"
+          style={{ backgroundColor: statusColor }}
         />
       </div>
       {isSelected && (
@@ -219,11 +212,47 @@ function POIMarker({
 
 export default function MapboxMap({ filters, layers, onReportSelect, selectedReportId, dmaLocation }: MapboxMapProps) {
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const { needs: victimReports } = useNeeds();
+  const { volunteers } = useVolunteers();
+  const { assignments } = useAssignments();
   
   const victimReportsRef = useRef<VictimReport[]>([]);
   const volunteersRef = useRef<Volunteer[]>([]);
+  const assignmentsRef = useRef<any[]>([]);
   
-  const routeGeometryRef = useRef<GeoJSON.LineString | null>(null);
+  victimReportsRef.current = victimReports;
+  volunteersRef.current = volunteers;
+  assignmentsRef.current = assignments;
+
+  const routeGeometryRef = useRef<any>(null);
+
+  // Active Mission GeoJSON
+  const activeMissionGeoJSON: any = {
+    type: 'FeatureCollection',
+    features: assignments
+      .filter(a => a.status !== 'completed' && a.status !== 'failed')
+      .map(a => {
+        const victim = victimReports.find(r => r.id === a.victim_report_id);
+        const volunteer = volunteers.find(v => v.id === a.assigned_to_volunteer);
+        if (victim && volunteer) {
+          return {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [volunteer.longitude, volunteer.latitude],
+                [victim.longitude, victim.latitude]
+              ]
+            },
+            properties: { 
+              status: a.status,
+              id: a.id
+            }
+          };
+        }
+        return null;
+      }).filter(Boolean) as any[]
+  };
   const dataFetchedRef = useRef(false);
   const fitBoundsToDataRef = useRef<(() => void) | null>(null);
   
@@ -239,7 +268,12 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
   const [hoveredVolunteer, setHoveredVolunteer] = useState<Volunteer | null>(null);
   const [hoveredPOI, setHoveredPOI] = useState<POIPlace | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ lng: number; lat: number } | null>(null);
-  const [volunteersVersion, setVolunteersVersion] = useState(0); // Used to trigger re-renders on realtime updates
+  const [volunteersVersion, setVolunteersVersion] = useState(0);
+
+  // Sync version state with hook data for Mapbox reactivity
+  useEffect(() => {
+    setVolunteersVersion(v => v + 1);
+  }, [volunteers, victimReports]);
 
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const filtersRef = useRef(filters);
@@ -422,11 +456,11 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
     }
   }, []);
 
-  const filteredReports = victimReportsRef.current.filter((r) => {
-    const f = filtersRef.current;
-    if (f.situations.length > 0 && !f.situations.includes(r.situation)) return false;
-    if (f.urgencies.length > 0 && !f.urgencies.includes(r.urgency)) return false;
-    if (f.district && r.district?.trim() !== f.district.trim()) return false;
+  const filteredReports = victimReports.filter((r) => {
+    if (r.status === 'resolved') return false; // Hide resolved reports from map
+    if (filters.situations.length > 0 && !filters.situations.includes(r.situation)) return false;
+    if (filters.urgencies.length > 0 && !filters.urgencies.includes(r.urgency)) return false;
+    if (filters.district && r.district?.trim() !== filters.district.trim()) return false;
     return true;
   });
 
@@ -503,63 +537,12 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
     }
   }, []);
 
-  // Real-time volunteer subscription
+  // Real-time volunteer subscription is now handled by hooks
   useEffect(() => {
-    if (dataFetchedRef.current) return;
-    dataFetchedRef.current = true;
-    
-    Promise.all([
-      fetch("/api/victim/reports").then((r) => r.json()),
-      fetch("/api/volunteer/locations").then((r) => r.json()),
-    ]).then(([reports, vols]) => {
-      victimReportsRef.current = Array.isArray(reports) ? reports : (reports.reports || []);
-      volunteersRef.current = Array.isArray(vols) ? vols : [];
+    if (victimReports.length > 0 || volunteers.length > 0) {
       setTimeout(() => fitBoundsToDataRef.current?.(), 500);
-    });
-
-    // Subscribe to real-time volunteer updates
-    const supabase = createClient();
-    const channel: RealtimeChannel = supabase
-      .channel('dma-volunteer-locations')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'volunteer',
-        },
-        (payload) => {
-          if (payload.eventType === 'UPDATE') {
-            const updatedVolunteer = payload.new as Volunteer;
-            // Update the volunteers array
-            const index = volunteersRef.current.findIndex(v => v.id === updatedVolunteer.id);
-            if (index !== -1) {
-              volunteersRef.current[index] = { ...volunteersRef.current[index], ...updatedVolunteer };
-            } else if (updatedVolunteer.latitude && updatedVolunteer.longitude) {
-              // New volunteer with location
-              volunteersRef.current.push(updatedVolunteer);
-            }
-            // Force re-render by updating a state variable
-            setVolunteersVersion(v => v + 1);
-          } else if (payload.eventType === 'INSERT') {
-            const newVolunteer = payload.new as Volunteer;
-            if (newVolunteer.latitude && newVolunteer.longitude) {
-              volunteersRef.current.push(newVolunteer);
-              setVolunteersVersion(v => v + 1);
-            }
-          } else if (payload.eventType === 'DELETE') {
-            const deletedId = payload.old.id;
-            volunteersRef.current = volunteersRef.current.filter(v => v.id !== deletedId);
-            setVolunteersVersion(v => v + 1);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+    }
+  }, [victimReports.length, volunteers.length]);
 
   useEffect(() => {
     if (dmaLocation) {
@@ -575,7 +558,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
     }
   }, [selectedReportId]);
 
-  const routeGeoJSON: GeoJSON.FeatureCollection = routeGeometryRef.current ? {
+  const routeGeoJSON: any = routeGeometryRef.current ? {
     type: "FeatureCollection",
     features: [{ type: "Feature", properties: {}, geometry: routeGeometryRef.current }]
   } : { type: "FeatureCollection", features: [] };
@@ -596,8 +579,8 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
         mapStyle={mapStyle === "dark" ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/satellite-streets-v12"}
         onLoad={() => setMapLoaded(true)}
       >
-        <NavigationControl position="top-right" showCompass={false} />
-        <ScaleControl position="bottom-left" unit="metric" />
+        <NavigationControl position="bottom-right" />
+        <ScaleControl />
 
         {layers.needPins && filteredReports.map((report) => (
           <Marker
@@ -696,6 +679,30 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
           </Marker>
         ))}
 
+        {/* Active Mission Routes */}
+        <Source id="active-missions" type="geojson" data={activeMissionGeoJSON}>
+          <Layer
+            id="mission-routes"
+            type="line"
+            paint={{
+              "line-color": "#FF6B2B",
+              "line-width": 2,
+              "line-dasharray": [2, 1],
+              "line-opacity": 0.6
+            }}
+          />
+          <Layer
+            id="mission-routes-casing"
+            type="line"
+            paint={{
+              "line-color": "#000000",
+              "line-width": 4,
+              "line-opacity": 0.2
+            }}
+          />
+        </Source>
+
+        {/* Measuring Route */}
         {routeGeometryRef.current && (
           <Source id="route" type="geojson" data={routeGeoJSON}>
             <Layer

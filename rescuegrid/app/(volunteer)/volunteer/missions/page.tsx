@@ -3,34 +3,13 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
-import { createClient } from '@/lib/supabase/client';
-import type { RealtimeChannel } from '@supabase/supabase-js';
-
-interface Assignment {
-  id: string;
-  task: string;
-  location_label: string;
-  latitude: number;
-  longitude: number;
-  urgency: string;
-  status: string;
-  timer: string | null;
-  created_at: string;
-  updated_at?: string;
-  victim_report_id: string | null;
-  assigned_to_taskforce: string | null;
-  assigned_to_volunteer: string | null;
-}
+import { useAssignments, Assignment } from '@/hooks/useAssignments';
 
 export default function MissionsPage() {
   const router = useRouter();
-  const supabase = createClient();
-  const channelRef = useRef<RealtimeChannel | null>(null);
   const [volunteerId, setVolunteerId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
-  const [queueAssignments, setQueueAssignments] = useState<Assignment[]>([]);
   const [historyAssignments, setHistoryAssignments] = useState<Assignment[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -47,53 +26,22 @@ export default function MissionsPage() {
     getVolunteerId();
   }, []);
 
-  const fetchAssignments = useCallback(async () => {
-    try {
-      const [queueRes, historyRes] = await Promise.all([
-        fetch('/api/volunteer/assignment/queue'),
-        fetch('/api/volunteer/assignment/history'),
-      ]);
-      if (queueRes.ok) {
-        const data = await queueRes.json();
-        setQueueAssignments(data);
-      }
-      if (historyRes.ok) {
-        const data = await historyRes.json();
-        setHistoryAssignments(data);
-      }
-    } catch {}
-    setLoading(false);
-  }, []);
+  const { assignments: queueAssignments, loading } = useAssignments(
+    volunteerId ? `assigned_to_volunteer=eq.${volunteerId}` : undefined
+  );
 
   useEffect(() => {
-    fetchAssignments();
-  }, [fetchAssignments]);
-
-  useEffect(() => {
-    if (!volunteerId) return;
-
-    channelRef.current = supabase
-      .channel(`volunteer-assignments-${volunteerId}`)
-      .on(
-        'postgres_changes' as const,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'assignment',
-          filter: `assigned_to_volunteer=eq.${volunteerId}`,
-        },
-        () => {
-          fetchAssignments();
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch('/api/volunteer/assignment/history');
+        if (res.ok) {
+          const data = await res.json();
+          setHistoryAssignments(data);
         }
-      )
-      .subscribe();
-
-    return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-      }
+      } catch {}
     };
-  }, [volunteerId, supabase, fetchAssignments]);
+    fetchHistory();
+  }, []);
 
   const handleStart = async (id: string) => {
     setActionLoading(id);
@@ -341,7 +289,7 @@ export default function MissionsPage() {
                             className="flex-1"
                           >
                             {actionLoading === assignment.id ? 'STARTING...' : 
-                             assignment.status === 'active' ? 'CONTINUE MISSION →' : 'START MISSION →'}
+                             assignment.status === 'active' ? 'START MISSION →' : 'CONTINUE MISSION →'}
                           </Button>
                         </div>
                       )}

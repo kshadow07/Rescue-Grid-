@@ -7,21 +7,8 @@ import LeftSidebar from "@/components/dma/LeftSidebar";
 import RightSidebar from "@/components/dma/RightSidebar";
 import MapboxMap from "@/components/dma/MapboxMap";
 import CreateAssignmentModal from "@/components/dma/CreateAssignmentModal";
+import { useNeeds, VictimReport } from "@/hooks/useNeeds";
 import { createClient } from "@/lib/supabase/client";
-
-interface VictimReport {
-  id: string;
-  phone_no: string;
-  latitude: number;
-  longitude: number;
-  city: string;
-  district: string;
-  situation: string;
-  urgency: string;
-  status: string;
-  created_at: string;
-  custom_message?: string;
-}
 
 interface Resource {
   id: string;
@@ -38,7 +25,7 @@ function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loginTime] = useState(() => new Date());
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
   const [dmaLocation, setDmaLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const [filters, setFilters] = useState({
@@ -56,9 +43,12 @@ function DashboardContent() {
 
   const [resources, setResources] = useState<Resource[]>([]);
   const [districts, setDistricts] = useState<string[]>([]);
-  const [selectedReport, setSelectedReport] = useState<VictimReport | null>(null);
+  const { needs: reports, loading: reportsLoading } = useNeeds();
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createModalReportId, setCreateModalReportId] = useState<string | null>(null);
+
+  const selectedReport = reports.find(r => r.id === selectedReportId) || null;
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -93,7 +83,7 @@ function DashboardContent() {
         router.push("/dma/login");
         return;
       }
-      setLoading(false);
+      setAuthLoading(false);
     };
     checkAuth();
   }, [router]);
@@ -111,22 +101,15 @@ function DashboardContent() {
       }
     };
 
-    const fetchReports = async () => {
-      try {
-        const res = await fetch("/api/victim/reports");
-        if (res.ok) {
-          const data = await res.json();
-          const uniqueDistricts = [...new Set((data as VictimReport[]).map((r: VictimReport) => r.district).filter(Boolean))] as string[];
-          setDistricts(uniqueDistricts);
-        }
-      } catch {
-        // silent fail
-      }
-    };
-
     fetchResources();
-    fetchReports();
   }, []);
+
+  useEffect(() => {
+    if (reports.length > 0) {
+      const uniqueDistricts = [...new Set(reports.map((r) => r.district).filter(Boolean))] as string[];
+      setDistricts(uniqueDistricts);
+    }
+  }, [reports]);
 
   const handleFiltersChange = useCallback((newFilters: typeof filters) => {
     setFilters(newFilters);
@@ -154,7 +137,7 @@ function DashboardContent() {
   }, []);
 
   const handleReportSelect = useCallback((report: VictimReport | null) => {
-    setSelectedReport(report);
+    setSelectedReportId(report?.id || null);
   }, []);
 
   const handleCreateAssignment = useCallback((reportId: string) => {
@@ -162,7 +145,24 @@ function DashboardContent() {
     setShowCreateModal(true);
   }, []);
 
-  if (loading) {
+  const handleResolveReport = useCallback(async (reportId: string) => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('victim_report')
+        .update({ status: 'resolved' })
+        .eq('id', reportId);
+      
+      if (error) throw error;
+      
+      // Deselect the report to "remove" it from active focus
+      setSelectedReportId(null);
+    } catch (error) {
+      console.error("Error resolving report:", error);
+    }
+  }, []);
+
+  if (authLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-void">
         <span className="font-mono text-[11px] text-dim uppercase tracking-wider">
@@ -192,7 +192,7 @@ function DashboardContent() {
             filters={filters}
             layers={layers}
             onReportSelect={handleReportSelect}
-            selectedReportId={selectedReport?.id || null}
+            selectedReportId={selectedReportId}
             dmaLocation={dmaLocation}
           />
         </main>
@@ -200,6 +200,7 @@ function DashboardContent() {
         <RightSidebar
           selectedReport={selectedReport}
           onCreateAssignment={handleCreateAssignment}
+          onResolveReport={handleResolveReport}
         />
       </div>
 

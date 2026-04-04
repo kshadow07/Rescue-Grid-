@@ -3,19 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
-
-interface Assignment {
-  id: string;
-  task: string;
-  location_label: string;
-  latitude: number;
-  longitude: number;
-  urgency: string;
-  status: string;
-  timer: string | null;
-  assigned_to_taskforce: string | null;
-  created_at: string;
-}
+import { useAssignments, Assignment } from '@/hooks/useAssignments';
 
 interface TFMember {
   id: string;
@@ -27,23 +15,40 @@ interface TFMember {
 
 export default function ActiveMissionPage() {
   const router = useRouter();
-  const [assignment, setAssignment] = useState<Assignment | null>(null);
+  const [volunteerId, setVolunteerId] = useState<string | null>(null);
   const [tfMembers, setTfMembers] = useState<TFMember[]>([]);
   const [tfName, setTfName] = useState<string>('');
-  const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
-  const fetchActive = useCallback(async () => {
-    try {
-      const res = await fetch('/api/volunteer/assignment/active');
-      if (res.ok) {
-        const data = await res.json();
-        setAssignment(data);
-        
-        if (data?.assigned_to_taskforce) {
+  useEffect(() => {
+    const getVolunteerId = async () => {
+      const cookie = document.cookie.split(';').find(c => c.trim().startsWith('volunteer_session='));
+      if (cookie) {
+        try {
+          const session = JSON.parse(decodeURIComponent(cookie.split('=')[1]));
+          setVolunteerId(session.volunteer_id);
+        } catch {}
+      }
+    };
+    getVolunteerId();
+  }, []);
+
+  const { assignments: activeAssignments, loading } = useAssignments(
+    volunteerId ? `assigned_to_volunteer=eq.${volunteerId}` : undefined
+  );
+
+  // Get the most recent active assignment
+  const assignment = activeAssignments.find(a => 
+    a.status === 'active' || a.status === 'on_my_way' || a.status === 'arrived'
+  ) || null;
+
+  useEffect(() => {
+    const fetchTfDetails = async () => {
+      if (assignment?.assigned_to_taskforce) {
+        try {
           const [membersRes, tfRes] = await Promise.all([
-            fetch(`/api/dma/taskforce/${data.assigned_to_taskforce}/members`),
-            fetch(`/api/dma/taskforce/${data.assigned_to_taskforce}`),
+            fetch(`/api/dma/taskforce/${assignment.assigned_to_taskforce}/members`),
+            fetch(`/api/dma/taskforce/${assignment.assigned_to_taskforce}`),
           ]);
           
           if (membersRes.ok) {
@@ -54,15 +59,11 @@ export default function ActiveMissionPage() {
             const tf = await tfRes.json();
             setTfName(tf?.name || 'Task Force');
           }
-        }
+        } catch {}
       }
-    } catch {}
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchActive();
-  }, [fetchActive]);
+    };
+    fetchTfDetails();
+  }, [assignment?.assigned_to_taskforce]);
 
   const updateStatus = async (newStatus: string) => {
     if (!assignment) return;
@@ -76,10 +77,8 @@ export default function ActiveMissionPage() {
       if (res.ok) {
         if (newStatus === 'completed' || newStatus === 'failed') {
           router.push('/volunteer/missions');
-          router.refresh();
-        } else {
-          fetchActive();
         }
+        // No need to fetchActive manually, useAssignments hook will handle the real-time update
       }
     } catch {}
     setUpdating(false);
