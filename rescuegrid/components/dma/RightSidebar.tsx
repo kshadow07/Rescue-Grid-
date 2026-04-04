@@ -8,6 +8,16 @@ import Button from "@/components/ui/Button";
 import StatusTimeline from "@/components/victim/StatusTimeline";
 import { VictimReport } from "@/hooks/useNeeds";
 
+const STATUS_OPTIONS = [
+  { value: 'open', label: 'Open', color: '#2ECC71' },
+  { value: 'verified', label: 'Verified', color: '#3B8BFF' },
+  { value: 'assigned', label: 'Assigned', color: '#F5A623' },
+  { value: 'en_route', label: 'En Route', color: '#FF6B2B' },
+  { value: 'arrived', label: 'Arrived', color: '#9B59B6' },
+  { value: 'resolved', label: 'Resolved', color: '#6B7280' },
+  { value: 'duplicate', label: 'Duplicate', color: '#6B7280' },
+];
+
 interface ResourceAllocation {
   id: string;
   quantity_allocated: number;
@@ -65,6 +75,8 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
   const [counters, setCounters] = useState<MissionCounter>({ queue: 0, active: 0, duplicate: 0, done: 0 });
   const [loading, setLoading] = useState(true);
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -178,6 +190,35 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
     };
   }, [selectedReport]);
 
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!selectedReport || newStatus === selectedReport.status) return;
+    
+    setIsUpdatingStatus(true);
+    setStatusError(null);
+    
+    try {
+      const res = await fetch('/api/dma/report/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_id: selectedReport.id, status: newStatus }),
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update status');
+      }
+      
+      // If status is resolved, also trigger the resolve callback
+      if (newStatus === 'resolved' && onResolveReport) {
+        onResolveReport(selectedReport.id);
+      }
+    } catch (err: any) {
+      setStatusError(err.message);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   const sortedResponders = [...responders].sort((a, b) => {
     const order = { "on-mission": 0, ready: 1, standby: 2 };
     const statusA = getResponderStatus(a.status);
@@ -264,6 +305,33 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                     </h3>
                   </div>
                   <StatusBadge status={selectedReport.status} />
+                </div>
+
+                {/* Manual Status Control for DMA */}
+                <div className="pt-2 border-t border-border-dim/50">
+                  <label className="font-mono text-[9px] text-orange uppercase tracking-widest block mb-2">
+                    Update Victim Status
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedReport.status}
+                      onChange={(e) => handleStatusUpdate(e.target.value)}
+                      disabled={isUpdatingStatus}
+                      className="flex-1 px-3 py-2 bg-surface-3 border border-border-dim font-mono text-[11px] text-ink focus:outline-none focus:border-orange disabled:opacity-50 rounded-sm"
+                    >
+                      {STATUS_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    {isUpdatingStatus && (
+                      <div className="w-4 h-4 border-2 border-orange border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </div>
+                  {statusError && (
+                    <p className="mt-1 font-mono text-[9px] text-alert">{statusError}</p>
+                  )}
                 </div>
 
                 <div className="space-y-3 py-4 border-y border-border-dim/50">

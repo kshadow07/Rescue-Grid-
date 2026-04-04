@@ -8,6 +8,7 @@ import { MapPin } from "lucide-react";
 import { useNeeds, VictimReport } from "@/hooks/useNeeds";
 import { useVolunteers, Volunteer } from "@/hooks/useVolunteers";
 import { useAssignments } from "@/hooks/useAssignments";
+import { useTaskForceMemberLocations, TaskForceMemberLocation } from "@/hooks/useTaskForceMemberLocations";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -215,42 +216,78 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
   const { needs: victimReports } = useNeeds();
   const { volunteers } = useVolunteers();
   const { assignments } = useAssignments();
+  const { members: taskForceMembers } = useTaskForceMemberLocations();
   
   const victimReportsRef = useRef<VictimReport[]>([]);
   const volunteersRef = useRef<Volunteer[]>([]);
   const assignmentsRef = useRef<any[]>([]);
+  const taskForceMembersRef = useRef<TaskForceMemberLocation[]>([]);
   
   victimReportsRef.current = victimReports;
   volunteersRef.current = volunteers;
   assignmentsRef.current = assignments;
+  taskForceMembersRef.current = taskForceMembers;
 
   const routeGeometryRef = useRef<any>(null);
 
-  // Active Mission GeoJSON
+  // Active Mission GeoJSON - includes both individual volunteer and task force assignments
   const activeMissionGeoJSON: any = {
     type: 'FeatureCollection',
     features: assignments
       .filter(a => a.status !== 'completed' && a.status !== 'failed')
-      .map(a => {
+      .flatMap(a => {
         const victim = victimReports.find(r => r.id === a.victim_report_id);
-        const volunteer = volunteers.find(v => v.id === a.assigned_to_volunteer);
-        if (victim && volunteer) {
-          return {
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: [
-                [volunteer.longitude, volunteer.latitude],
-                [victim.longitude, victim.latitude]
-              ]
-            },
-            properties: { 
-              status: a.status,
-              id: a.id
-            }
-          };
+        if (!victim) return [];
+
+        const features: any[] = [];
+
+        // Handle individual volunteer assignment
+        if (a.assigned_to_volunteer) {
+          const volunteer = volunteers.find(v => v.id === a.assigned_to_volunteer);
+          if (volunteer) {
+            features.push({
+              type: 'Feature',
+              geometry: {
+                type: 'LineString',
+                coordinates: [
+                  [volunteer.longitude, volunteer.latitude],
+                  [victim.longitude, victim.latitude]
+                ]
+              },
+              properties: {
+                status: a.status,
+                id: a.id,
+                type: 'volunteer'
+              }
+            });
+          }
         }
-        return null;
+
+        // Handle task force assignment - draw routes from all TF members
+        if (a.assigned_to_taskforce) {
+          const tfMembers = taskForceMembers.filter(m => m.task_force_id === a.assigned_to_taskforce);
+          tfMembers.forEach(member => {
+            features.push({
+              type: 'Feature',
+              geometry: {
+                type: 'LineString',
+                coordinates: [
+                  [member.longitude, member.latitude],
+                  [victim.longitude, victim.latitude]
+                ]
+              },
+              properties: {
+                status: a.status,
+                id: a.id,
+                type: 'taskforce',
+                memberId: member.id,
+                memberName: member.name
+              }
+            });
+          });
+        }
+
+        return features;
       }).filter(Boolean) as any[]
   };
   const dataFetchedRef = useRef(false);
@@ -479,6 +516,14 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
     volunteersRef.current.forEach((vol) => {
       if (vol.latitude && vol.longitude) {
         bounds.extend([vol.longitude, vol.latitude]);
+        hasPoints = true;
+      }
+    });
+
+    // Include task force member locations in bounds
+    taskForceMembersRef.current.forEach((member) => {
+      if (member.latitude && member.longitude) {
+        bounds.extend([member.longitude, member.latitude]);
         hasPoints = true;
       }
     });

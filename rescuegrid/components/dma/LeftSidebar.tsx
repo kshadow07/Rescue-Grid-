@@ -187,6 +187,7 @@ export default function LeftSidebar({
             {[
               { key: "needPins", label: "Need Pins" },
               { key: "volunteers", label: "Volunteer Locations" },
+              { key: "taskForceRoutes", label: "Task Force Routes" },
               { key: "reliefCamps", label: "Relief Camps" },
               { key: "hospitals", label: "Nearby Hospitals" },
             ].map((layer) => (
