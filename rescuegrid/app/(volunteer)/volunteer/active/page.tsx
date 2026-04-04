@@ -33,13 +33,13 @@ export default function ActiveMissionPage() {
     getVolunteerId();
   }, []);
 
-  const { assignments: activeAssignments, loading } = useAssignments(
+  const { assignments: activeAssignments, loading, refresh } = useAssignments(
     volunteerId ? `assigned_to_volunteer=eq.${volunteerId}` : undefined
   );
 
   // Get the most recent active assignment
   const assignment = activeAssignments.find(a => 
-    a.status === 'active' || a.status === 'on_my_way' || a.status === 'arrived'
+    a.status === 'active' || a.status === 'on_my_way' || a.status === 'arrived' || a.status === 'en_route'
   ) || null;
 
   useEffect(() => {
@@ -77,8 +77,10 @@ export default function ActiveMissionPage() {
       if (res.ok) {
         if (newStatus === 'completed' || newStatus === 'failed') {
           router.push('/volunteer/missions');
+        } else {
+          // Explicitly refresh to ensure UI stays in sync with potential server-side changes
+          refresh();
         }
-        // No need to fetchActive manually, useAssignments hook will handle the real-time update
       }
     } catch {}
     setUpdating(false);
@@ -99,7 +101,8 @@ export default function ActiveMissionPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-orange text-void';
-      case 'on_my_way': return 'bg-orange/80 text-void';
+      case 'on_my_way':
+      case 'en_route': return 'bg-orange/80 text-void';
       case 'arrived': return 'bg-ops text-void';
       default: return 'bg-surface-3 text-muted';
     }
@@ -108,7 +111,8 @@ export default function ActiveMissionPage() {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'active': return 'ASSIGNED';
-      case 'on_my_way': return 'EN ROUTE';
+      case 'on_my_way':
+      case 'en_route': return 'EN ROUTE';
       case 'arrived': return 'ON SITE';
       default: return status.toUpperCase();
     }
@@ -223,21 +227,21 @@ export default function ActiveMissionPage() {
           {assignment.status === 'active' && (
             <Button
               variant="secondary"
-              onClick={() => updateStatus('on_my_way')}
+              onClick={() => updateStatus('en_route')}
               disabled={updating}
               className="flex-1"
             >
-              ON MY WAY
+              ACCEPT MISSION
             </Button>
           )}
-          {(assignment.status === 'active' || assignment.status === 'on_my_way') && (
+          {assignment.status === 'en_route' && (
             <Button
               variant="secondary"
               onClick={() => updateStatus('arrived')}
               disabled={updating}
               className="flex-1"
             >
-              ARRIVED
+              ARRIVED AT SITE
             </Button>
           )}
         </div>

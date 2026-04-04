@@ -61,6 +61,7 @@ function getResponderStatus(status: string): "on-mission" | "ready" | "standby" 
 export default function RightSidebar({ selectedReport, onCreateAssignment, onResolveReport }: RightSidebarProps) {
   const [responders, setResponders] = useState<Responder[]>([]);
   const [activeMissions, setActiveMissions] = useState<any[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [counters, setCounters] = useState<MissionCounter>({ queue: 0, active: 0, duplicate: 0, done: 0 });
   const [loading, setLoading] = useState(true);
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -104,7 +105,7 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
         }
         if (activeRes.ok) {
           const activeData = await activeRes.json();
-          setActiveMissions(activeData.filter((a: any) => a.status !== 'completed' && a.status !== 'failed'));
+          setActiveMissions(activeData);
         }
       } catch {
         // silent fail
@@ -184,6 +185,22 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
     return (order[statusA] ?? 3) - (order[statusB] ?? 3);
   });
 
+  const missionsToDisplay = selectedStatus === 'done'
+    ? activeMissions.filter(m => m.status === 'completed' || m.status === 'failed')
+    : selectedStatus === 'open'
+      ? activeMissions.filter(m => m.status === 'open')
+      : selectedStatus 
+        ? activeMissions.filter(m => m.status === selectedStatus)
+        : activeMissions.filter(m => m.status !== 'completed' && m.status !== 'failed');
+
+  const missionListTitle = selectedStatus === 'done'
+    ? "COMPLETED MISSIONS"
+    : selectedStatus === 'open'
+      ? "QUEUED MISSIONS"
+      : selectedStatus 
+        ? `${selectedStatus.toUpperCase()} MISSIONS`
+        : "ACTIVE MISSIONS";
+
   return (
     <aside className="w-[340px] shrink-0 bg-surface-1 border-l border-border-dim overflow-y-auto custom-scrollbar">
       <div className="p-5 space-y-8">
@@ -201,19 +218,27 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
 
           <div className="grid grid-cols-2 gap-3">
             {[
-              { key: "queue", label: "QUEUE", color: "text-alert", bg: "bg-alert/5" },
-              { key: "active", label: "ACTIVE", color: "text-orange", bg: "bg-orange/5" },
-              { key: "duplicate", label: "DUPE", color: "text-dim", bg: "bg-surface-3" },
-              { key: "done", label: "DONE", color: "text-ops", bg: "bg-ops/5" },
+              { key: "queue", label: "QUEUE", color: "text-alert", bg: "bg-alert/5", status: "open" },
+              { key: "active", label: "ACTIVE", color: "text-orange", bg: "bg-orange/5", status: "active" },
+              { key: "duplicate", label: "DUPE", color: "text-dim", bg: "bg-surface-3", status: "duplicate" },
+              { key: "done", label: "DONE", color: "text-ops", bg: "bg-ops/5", status: "done" },
             ].map((item) => (
-              <div key={item.key} className={`${item.bg} border border-border-dim p-3 rounded-sm`}>
-                <div className={`font-display text-[28px] font-black ${item.color} leading-none mb-1`}>
+              <button
+                key={item.key}
+                onClick={() => setSelectedStatus(selectedStatus === item.status ? null : item.status)}
+                className={`text-left transition-all border rounded-sm p-3 group
+                  ${selectedStatus === item.status 
+                    ? "border-orange shadow-[0_0_10px_rgba(255,107,43,0.1)] bg-orange/5" 
+                    : "border-border-dim hover:border-orange/30 bg-surface-2"
+                  }`}
+              >
+                <div className={`font-display text-[28px] font-black ${item.color} leading-none mb-1 group-hover:scale-105 transition-transform`}>
                   {counters[item.key as keyof MissionCounter]}
                 </div>
                 <div className="font-mono text-[9px] text-dim uppercase tracking-[0.2em]">
                   {item.label}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </section>
@@ -286,9 +311,18 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                         <div className="font-display text-[14px] font-bold text-ink mb-1">
                           {assignment.task}
                         </div>
-                        {(assignment.volunteer_name || assignment.taskforce_name) && (
-                          <div className="font-mono text-[10px] text-orange uppercase font-bold mt-1 mb-1">
-                            BY: {assignment.volunteer_name || assignment.taskforce_name}
+                        {assignment.assignee_name && assignment.assignee_name !== "Unassigned" && (
+                          <div className="flex items-center gap-2 mt-1 mb-1">
+                            <span className="font-mono text-[9px] text-dim uppercase">ASSIGNED TO:</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`w-2 h-2 rounded-full ${assignment.assignee_type === 'taskforce' ? 'bg-intel' : 'bg-orange'}`} />
+                              <span className="font-mono text-[10px] text-ink font-bold uppercase tracking-tight">
+                                {assignment.assignee_name}
+                              </span>
+                              <span className="font-mono text-[8px] text-dim/70 uppercase px-1 border border-border-dim rounded-[2px]">
+                                {assignment.assignee_type === 'taskforce' ? 'TASK FORCE' : 'VOLUNTEER'}
+                              </span>
+                            </div>
                           </div>
                         )}
                         <div className="font-mono text-[10px] text-dim">
@@ -341,14 +375,14 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
             <div className="flex items-center gap-2">
               <span className="text-orange text-[14px]">⚡</span>
               <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-ink">
-                ACTIVE MISSIONS
+                {missionListTitle}
               </h2>
             </div>
             {loading ? (
               <div className="w-8 h-4 bg-orange/20 animate-pulse rounded-full" />
             ) : (
               <span className="bg-orange/10 px-2 py-0.5 font-mono text-[10px] text-orange rounded-full border border-orange/20">
-                {activeMissions.length}
+                {missionsToDisplay.length}
               </span>
             )}
           </div>
@@ -358,14 +392,14 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
               [1, 2].map((i) => (
                 <div key={i} className="h-24 bg-surface-2 border border-border-dim animate-pulse rounded-sm" />
               ))
-            ) : activeMissions.length === 0 ? (
+            ) : missionsToDisplay.length === 0 ? (
               <div className="py-6 text-center border border-dashed border-border-dim rounded-sm">
                 <p className="font-mono text-[9px] text-dim uppercase tracking-widest">
-                  No active missions
+                  No {selectedStatus || "active"} missions
                 </p>
               </div>
             ) : (
-              activeMissions.map((mission) => (
+              missionsToDisplay.map((mission) => (
                 <div
                   key={mission.id}
                   className="bg-surface-2 border border-border-dim p-3 rounded-sm space-y-2 hover:border-orange/30 transition-colors"
@@ -381,9 +415,20 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                   <div className="font-display text-[13px] font-bold text-ink leading-snug">
                     {mission.task}
                   </div>
+                  {mission.assignee_name && (
+                    <div className="flex items-center gap-1.5 py-1">
+                      <span className={`w-1.5 h-1.5 rounded-full ${mission.assignee_type === 'taskforce' ? 'bg-intel' : 'bg-orange'}`} />
+                      <span className="font-mono text-[10px] text-ink font-bold uppercase tracking-tight">
+                        {mission.assignee_name}
+                      </span>
+                      <span className="font-mono text-[8px] text-dim/60 uppercase">
+                        {mission.assignee_type === 'taskforce' ? 'TASK FORCE' : 'VOLUNTEER'}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between pt-1 border-t border-border-dim/50">
-                    <div className="font-mono text-[9px] text-dim uppercase">
-                      TO: {mission.volunteer_name || mission.taskforce_name || "Unassigned"}
+                    <div className="font-mono text-[9px] text-dim/70 truncate pr-2">
+                      FOR: {mission.victim_situation || "Unknown Victim"}
                     </div>
                     <div className="font-mono text-[9px] text-dim/50">
                       ID: {mission.id.slice(0, 6)}
