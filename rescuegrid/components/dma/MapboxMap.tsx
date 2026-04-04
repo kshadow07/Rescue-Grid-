@@ -809,15 +809,15 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
       </Map>
 
       {!mapLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-void z-10">
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
-              <div className="w-12 h-12 border-3 border-orange border-t-transparent rounded-full animate-spin"></div>
-              <div className="absolute inset-0 w-12 h-12 border-3 border-orange/30 rounded-full animate-ping"></div>
+              <div className="w-12 h-12 border-[3px] border-orange border-t-transparent rounded-full animate-spin"></div>
+              <div className="absolute inset-0 w-12 h-12 border-[3px] border-orange/30 rounded-full animate-ping"></div>
             </div>
             <div className="text-center">
-              <div className="font-mono text-[11px] text-dim uppercase tracking-[0.2em] mb-1">Initializing Map</div>
-              <div className="font-mono text-[9px] text-dim/50 uppercase tracking-wider">Loading incident data...</div>
+              <div className="font-mono text-[11px] text-gray-400 uppercase tracking-[0.2em] mb-1">Initializing Map</div>
+              <div className="font-mono text-[9px] text-gray-300 uppercase tracking-wider">Loading incident data...</div>
             </div>
           </div>
         </div>
@@ -826,23 +826,20 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
         <button 
           onClick={() => setMapStyleState(mapStyle === "dark" ? "satellite" : "dark")}
-          className="px-3 py-1.5 bg-surface-2/95 backdrop-blur-sm border border-border-dim font-mono text-[10px] text-dim uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-all"
-          style={{ clipPath: "var(--clip-tactical-sm)" }}
+          className="px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-gray-200 font-mono text-[10px] text-gray-600 uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-all rounded-sm shadow-sm"
         >
           {mapStyle === "dark" ? "🛰️ SATELLITE" : "🌑 DARK"}
         </button>
         <button 
           onClick={() => fitBoundsToDataRef.current?.()}
-          className="px-3 py-1.5 bg-surface-2/95 backdrop-blur-sm border border-border-dim font-mono text-[10px] text-dim uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-all"
-          style={{ clipPath: "var(--clip-tactical-sm)" }}
+          className="px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-gray-200 font-mono text-[10px] text-gray-600 uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-all rounded-sm shadow-sm"
         >
           🎯 FIT VIEW
         </button>
         {(originReport || destinationVolunteer) && (
           <button 
             onClick={clearRouteSelection}
-            className="px-3 py-1.5 bg-alert/20 backdrop-blur-sm border border-alert/50 font-mono text-[10px] text-alert uppercase tracking-wider hover:bg-alert/30 transition-all"
-            style={{ clipPath: "var(--clip-tactical-sm)" }}
+            className="px-3 py-1.5 bg-red-50 backdrop-blur-sm border border-red-200 font-mono text-[10px] text-red-600 uppercase tracking-wider hover:bg-red-100 transition-all rounded-sm shadow-sm"
           >
             ✕ CLEAR ROUTE
           </button>
@@ -851,30 +848,30 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
 
       {selectionMode === "destination" && originReport && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
-          <div className="px-4 py-2 bg-surface-2/95 backdrop-blur-sm border border-orange/50 font-mono text-[11px] text-orange uppercase tracking-wider" style={{ clipPath: "var(--clip-tactical-sm)" }}>
+          <div className="px-4 py-2 bg-white/95 backdrop-blur-sm border border-orange/50 font-mono text-[11px] text-orange uppercase tracking-wider rounded-sm shadow-sm">
             📍 Origin selected · Click a responder to measure distance
           </div>
         </div>
       )}
 
       <div className="absolute bottom-20 left-4 z-10">
-        <div className="px-3 py-2.5 bg-surface-2/95 backdrop-blur-sm border border-border-dim" style={{ clipPath: "var(--clip-tactical-sm)" }}>
-          <div className="text-[9px] font-mono text-dim/70 uppercase tracking-[0.15em] mb-2">Legend</div>
+        <div className="px-3 py-2.5 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-sm shadow-sm">
+          <div className="text-[9px] font-mono text-gray-400 uppercase tracking-[0.15em] mb-2">Legend</div>
           <div className="flex flex-col gap-1.5">
             {Object.entries(SITUATION_STYLES).map(([type, data]) => (
               <div key={type} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: data.color }}></div>
-                <span className="font-mono text-[9px] text-dim uppercase tracking-wider">{data.label}</span>
+                <span className="font-mono text-[9px] text-gray-500 uppercase tracking-wider">{data.label}</span>
               </div>
             ))}
-            <div className="mt-2 pt-2 border-t border-border-dim/50">
+            <div className="mt-2 pt-2 border-t border-gray-200/50">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-3 h-3 rounded-full bg-[#3B8BFF]"></div>
-                <span className="font-mono text-[9px] text-dim uppercase">Hospital</span>
+                <span className="font-mono text-[9px] text-gray-500 uppercase">Hospital</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-[#2ECC71]"></div>
-                <span className="font-mono text-[9px] text-dim uppercase">Relief Camp</span>
+                <span className="font-mono text-[9px] text-gray-500 uppercase">Relief Camp</span>
               </div>
             </div>
           </div>
@@ -882,11 +879,11 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
       </div>
 
       <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2">
-        <div className="px-3 py-1.5 bg-surface-2/95 backdrop-blur-sm border border-border-dim font-mono text-[9px] text-dim/70" style={{ clipPath: "var(--clip-tactical-sm)" }}>
+        <div className="px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-gray-200 font-mono text-[9px] text-gray-500 rounded-sm shadow-sm">
           {victimReportsRef.current.length} REPORTS · {volunteersRef.current.length} RESPONDERS
         </div>
         {routeInfo && (
-          <div className="px-3 py-1.5 bg-orange/20 backdrop-blur-sm border border-orange/50 font-mono text-[9px] text-orange" style={{ clipPath: "var(--clip-tactical-sm)" }}>
+          <div className="px-3 py-1.5 bg-orange/10 backdrop-blur-sm border border-orange/50 font-mono text-[9px] text-orange rounded-sm shadow-sm">
             ↔ {routeInfo.distance} · {routeInfo.duration}
           </div>
         )}

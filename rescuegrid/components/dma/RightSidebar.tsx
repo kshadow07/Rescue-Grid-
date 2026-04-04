@@ -120,7 +120,6 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
           setActiveMissions(activeData);
         }
       } catch {
-        // silent fail
       } finally {
         setLoading(false);
       }
@@ -128,7 +127,6 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
 
     fetchData();
 
-    // Subscribe to real-time volunteer updates
     const supabase = createClient();
     channelRef.current = supabase
       .channel('right-sidebar-volunteer-updates')
@@ -148,7 +146,6 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
               );
             } else if (payload.eventType === 'INSERT') {
               const newResponder = payload.new as Responder;
-              // Check if already exists to avoid duplicates
               if (!current.find((r) => r.id === newResponder.id)) {
                 return [...current, newResponder];
               }
@@ -168,7 +165,6 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
             table: 'assignment',
           },
           (payload) => {
-             // Refresh counters and assignments if it matches selected report
              fetchData();
              if (selectedReport && (payload.new as any).victim_report_id === selectedReport.id) {
                if (payload.eventType === 'INSERT') {
@@ -208,7 +204,6 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
         throw new Error(data.error || 'Failed to update status');
       }
       
-      // If status is resolved, also trigger the resolve callback
       if (newStatus === 'resolved' && onResolveReport) {
         onResolveReport(selectedReport.id);
       }
@@ -243,9 +238,8 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
         : "ACTIVE MISSIONS";
 
   return (
-    <aside className="w-[340px] shrink-0 bg-surface-1 border-l border-border-dim overflow-y-auto custom-scrollbar">
+    <aside className="w-[340px] shrink-0 bg-white border-l border-border-dim overflow-y-auto custom-scrollbar">
       <div className="p-5 space-y-8">
-        {/* Mission Control Header */}
         <section>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -259,24 +253,24 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
 
           <div className="grid grid-cols-2 gap-3">
             {[
-              { key: "queue", label: "QUEUE", color: "text-alert", bg: "bg-alert/5", status: "open" },
-              { key: "active", label: "ACTIVE", color: "text-orange", bg: "bg-orange/5", status: "active" },
-              { key: "duplicate", label: "DUPE", color: "text-dim", bg: "bg-surface-3", status: "duplicate" },
-              { key: "done", label: "DONE", color: "text-ops", bg: "bg-ops/5", status: "done" },
+              { key: "queue", label: "QUEUE", color: "text-red-600", bg: "bg-red-50", border: "border-red-100", status: "open" },
+              { key: "active", label: "ACTIVE", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-100", status: "active" },
+              { key: "duplicate", label: "DUPE", color: "text-gray-500", bg: "bg-gray-50", border: "border-gray-200", status: "duplicate" },
+              { key: "done", label: "DONE", color: "text-green-600", bg: "bg-green-50", border: "border-green-100", status: "done" },
             ].map((item) => (
               <button
                 key={item.key}
                 onClick={() => setSelectedStatus(selectedStatus === item.status ? null : item.status)}
                 className={`text-left transition-all border rounded-sm p-3 group
                   ${selectedStatus === item.status 
-                    ? "border-orange shadow-[0_0_10px_rgba(255,107,43,0.1)] bg-orange/5" 
-                    : "border-border-dim hover:border-orange/30 bg-surface-2"
+                    ? `border-orange shadow-sm bg-orange-50` 
+                    : `${item.border} hover:border-orange/30 ${item.bg}`
                   }`}
               >
                 <div className={`font-display text-[28px] font-black ${item.color} leading-none mb-1 group-hover:scale-105 transition-transform`}>
                   {counters[item.key as keyof MissionCounter]}
                 </div>
-                <div className="font-mono text-[9px] text-dim uppercase tracking-[0.2em]">
+                <div className="font-mono text-[9px] text-gray-500 uppercase tracking-[0.2em]">
                   {item.label}
                 </div>
               </button>
@@ -287,17 +281,17 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
         {selectedReport ? (
           <section className="animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-alert">🆘</span>
+              <span className="text-red-500">🆘</span>
               <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-ink">
                 ACTIVE FOCUS
               </h2>
             </div>
             
-            <div className="bg-surface-2 border border-border-dim rounded-sm overflow-hidden shadow-lg shadow-black/20">
+            <div className="bg-white border border-gray-200 rounded-sm overflow-hidden shadow-sm">
               <div className="p-4 space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
-                    <div className="font-mono text-[10px] text-alert font-bold uppercase tracking-wider">
+                    <div className="font-mono text-[10px] text-red-600 font-bold uppercase tracking-wider">
                       {selectedReport.urgency} PRIORITY
                     </div>
                     <h3 className="font-display text-[16px] font-bold text-ink leading-tight">
@@ -307,8 +301,7 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                   <StatusBadge status={selectedReport.status} />
                 </div>
 
-                {/* Manual Status Control for DMA */}
-                <div className="pt-2 border-t border-border-dim/50">
+                <div className="pt-2 border-t border-gray-100">
                   <label className="font-mono text-[9px] text-orange uppercase tracking-widest block mb-2">
                     Update Victim Status
                   </label>
@@ -317,7 +310,7 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                       value={selectedReport.status}
                       onChange={(e) => handleStatusUpdate(e.target.value)}
                       disabled={isUpdatingStatus}
-                      className="flex-1 px-3 py-2 bg-surface-3 border border-border-dim font-mono text-[11px] text-ink focus:outline-none focus:border-orange disabled:opacity-50 rounded-sm"
+                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm font-mono text-[11px] text-ink focus:outline-none focus:ring-2 focus:ring-orange/20 disabled:opacity-50"
                     >
                       {STATUS_OPTIONS.map(opt => (
                         <option key={opt.value} value={opt.value}>
@@ -330,38 +323,37 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                     )}
                   </div>
                   {statusError && (
-                    <p className="mt-1 font-mono text-[9px] text-alert">{statusError}</p>
+                    <p className="mt-1 font-mono text-[9px] text-red-600">{statusError}</p>
                   )}
                 </div>
 
-                <div className="space-y-3 py-4 border-y border-border-dim/50">
+                <div className="space-y-3 py-4 border-y border-gray-100">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-ink/70">
+                    <div className="flex items-center gap-2 text-gray-600">
                       <span className="text-[12px]">📍</span>
                       <span className="font-body text-[13px]">{selectedReport.city}, {selectedReport.district}</span>
                     </div>
-                    <div className="px-2 py-0.5 bg-surface-3 rounded-full flex items-center gap-1.5 border border-border-dim">
+                    <div className="px-2 py-0.5 bg-gray-50 rounded-full flex items-center gap-1.5 border border-gray-200">
                       <span className="text-[10px]">☀️</span>
-                      <span className="font-mono text-[10px] text-dim">28°C · CLEAR</span>
+                      <span className="font-mono text-[10px] text-gray-500">28°C · CLEAR</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-ink/70">
+                  <div className="flex items-center gap-2 text-gray-600">
                     <span className="text-[12px]">📞</span>
                     <span className="font-mono text-[12px]">{selectedReport.phone_no}</span>
                   </div>
                 </div>
 
                 {selectedReport.custom_message && (
-                  <div className="bg-surface-3 p-3 border-l-2 border-orange/50 italic">
-                    <p className="font-body text-[12px] text-ink/80 leading-relaxed">
+                  <div className="bg-gray-50 p-3 border-l-2 border-orange/50 italic">
+                    <p className="font-body text-[12px] text-gray-700 leading-relaxed">
                       "{selectedReport.custom_message}"
                     </p>
                   </div>
                 )}
 
-                {/* Real-time Timeline inside Sidebar */}
                 <div className="pt-2">
-                  <div className="font-mono text-[9px] text-dim uppercase tracking-widest mb-4 text-center">MISSION PROGRESS</div>
+                  <div className="font-mono text-[9px] text-gray-400 uppercase tracking-widest mb-4 text-center">MISSION PROGRESS</div>
                   <div className="scale-[0.85] origin-top -mx-4">
                     <StatusTimeline status={selectedReport.status} createdAt={selectedReport.created_at} />
                   </div>
@@ -369,31 +361,31 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                 
                 {assignments.length > 0 && (
                   <div className="space-y-3 mt-4">
-                    <div className="font-mono text-[10px] text-dim uppercase tracking-widest">Active Assignments ({assignments.length})</div>
+                    <div className="font-mono text-[10px] text-gray-400 uppercase tracking-widest">Active Assignments ({assignments.length})</div>
                     {assignments.map((assignment) => (
-                      <div key={assignment.id} className="p-3 bg-ops/5 border border-ops/20 rounded-sm">
+                      <div key={assignment.id} className="p-3 bg-green-50 border border-green-100 rounded-sm">
                         <div className="flex items-center justify-between mb-2">
-                          <div className="font-mono text-[10px] text-ops font-bold uppercase tracking-widest">ASSIGNED UNIT</div>
-                          <StatusBadge status={assignment.status} />
+                          <div className="font-mono text-[10px] text-green-600 font-bold uppercase tracking-widest">ASSIGNED UNIT</div>
+                          <StatusBadge status={assignment.status} size="sm" />
                         </div>
                         <div className="font-display text-[14px] font-bold text-ink mb-1">
                           {assignment.task}
                         </div>
                         {assignment.assignee_name && assignment.assignee_name !== "Unassigned" && (
                           <div className="flex items-center gap-2 mt-1 mb-1">
-                            <span className="font-mono text-[9px] text-dim uppercase">ASSIGNED TO:</span>
+                            <span className="font-mono text-[9px] text-gray-500 uppercase">ASSIGNED TO:</span>
                             <div className="flex items-center gap-1.5">
-                              <span className={`w-2 h-2 rounded-full ${assignment.assignee_type === 'taskforce' ? 'bg-intel' : 'bg-orange'}`} />
+                              <span className={`w-2 h-2 rounded-full ${assignment.assignee_type === 'taskforce' ? 'bg-blue-500' : 'bg-orange-500'}`} />
                               <span className="font-mono text-[10px] text-ink font-bold uppercase tracking-tight">
                                 {assignment.assignee_name}
                               </span>
-                              <span className="font-mono text-[8px] text-dim/70 uppercase px-1 border border-border-dim rounded-[2px]">
+                              <span className="font-mono text-[8px] text-gray-500 uppercase px-1 border border-gray-200 rounded-[2px]">
                                 {assignment.assignee_type === 'taskforce' ? 'TASK FORCE' : 'VOLUNTEER'}
                               </span>
                             </div>
                           </div>
                         )}
-                        <div className="font-mono text-[10px] text-dim">
+                        <div className="font-mono text-[10px] text-gray-400">
                           ID: {assignment.id.slice(0, 8)}
                         </div>
                       </div>
@@ -413,7 +405,7 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                   ) : selectedReport.status !== 'resolved' && (
                     <Button
                       variant="primary"
-                      className="flex-1 py-3 bg-ops text-black hover:bg-ops/90 border-none shadow-[0_0_15px_rgba(46,204,113,0.3)]"
+                      className="flex-1 py-3 bg-green-500 text-white hover:bg-green-600 border-none shadow-sm"
                       onClick={() => onResolveReport(selectedReport.id)}
                     >
                       RESOLVE & REMOVE ✓
@@ -421,7 +413,7 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                   )}
                   <a
                     href={`tel:${selectedReport.phone_no}`}
-                    className="flex items-center justify-center px-4 border border-border-dim hover:bg-surface-3 transition-colors rounded-sm"
+                    className="flex items-center justify-center px-4 border border-gray-200 hover:bg-gray-50 transition-colors rounded-sm"
                   >
                     📞
                   </a>
@@ -430,9 +422,9 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
             </div>
           </section>
         ) : (
-          <section className="py-12 text-center border-2 border-dashed border-border-dim rounded-lg">
+          <section className="py-12 text-center border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
             <div className="text-[24px] mb-2 opacity-30">🎯</div>
-            <p className="font-mono text-[10px] text-dim uppercase tracking-widest px-8">
+            <p className="font-mono text-[10px] text-gray-400 uppercase tracking-widest px-8">
               Select a report from the map to view details & assign units
             </p>
           </section>
@@ -441,15 +433,15 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
         <section>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className="text-orange text-[14px]">⚡</span>
+              <span className="text-orange-500 text-[14px]">⚡</span>
               <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-ink">
                 {missionListTitle}
               </h2>
             </div>
             {loading ? (
-              <div className="w-8 h-4 bg-orange/20 animate-pulse rounded-full" />
+              <div className="w-8 h-4 bg-orange-50 animate-pulse rounded-full" />
             ) : (
-              <span className="bg-orange/10 px-2 py-0.5 font-mono text-[10px] text-orange rounded-full border border-orange/20">
+              <span className="bg-orange-50 px-2 py-0.5 font-mono text-[10px] text-orange-600 rounded-full border border-orange-100">
                 {missionsToDisplay.length}
               </span>
             )}
@@ -458,11 +450,11 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
           <div className="space-y-3">
             {loading ? (
               [1, 2].map((i) => (
-                <div key={i} className="h-24 bg-surface-2 border border-border-dim animate-pulse rounded-sm" />
+                <div key={i} className="h-24 bg-gray-50 border border-gray-100 animate-pulse rounded-sm" />
               ))
             ) : missionsToDisplay.length === 0 ? (
-              <div className="py-6 text-center border border-dashed border-border-dim rounded-sm">
-                <p className="font-mono text-[9px] text-dim uppercase tracking-widest">
+              <div className="py-6 text-center border border-dashed border-gray-200 rounded-sm bg-gray-50">
+                <p className="font-mono text-[9px] text-gray-400 uppercase tracking-widest">
                   No {selectedStatus || "active"} missions
                 </p>
               </div>
@@ -470,13 +462,13 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
               missionsToDisplay.map((mission) => (
                 <div
                   key={mission.id}
-                  className="bg-surface-2 border border-border-dim p-3 rounded-sm space-y-2 hover:border-orange/30 transition-colors"
+                  className="bg-white border border-gray-200 p-3 rounded-sm space-y-2 hover:border-orange/30 transition-colors"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="font-mono text-[10px] text-orange font-bold uppercase tracking-widest">
+                    <div className="font-mono text-[10px] text-orange-600 font-bold uppercase tracking-widest">
                       {mission.status}
                     </div>
-                    <div className="font-mono text-[9px] text-dim">
+                    <div className="font-mono text-[9px] text-gray-400">
                       {timeAgo(mission.created_at)}
                     </div>
                   </div>
@@ -485,20 +477,20 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                   </div>
                   {mission.assignee_name && (
                     <div className="flex items-center gap-1.5 py-1">
-                      <span className={`w-1.5 h-1.5 rounded-full ${mission.assignee_type === 'taskforce' ? 'bg-intel' : 'bg-orange'}`} />
+                      <span className={`w-1.5 h-1.5 rounded-full ${mission.assignee_type === 'taskforce' ? 'bg-blue-500' : 'bg-orange-500'}`} />
                       <span className="font-mono text-[10px] text-ink font-bold uppercase tracking-tight">
                         {mission.assignee_name}
                       </span>
-                      <span className="font-mono text-[8px] text-dim/60 uppercase">
+                      <span className="font-mono text-[8px] text-gray-400 uppercase">
                         {mission.assignee_type === 'taskforce' ? 'TASK FORCE' : 'VOLUNTEER'}
                       </span>
                     </div>
                   )}
-                  <div className="flex items-center justify-between pt-1 border-t border-border-dim/50">
-                    <div className="font-mono text-[9px] text-dim/70 truncate pr-2">
+                  <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                    <div className="font-mono text-[9px] text-gray-400 truncate pr-2">
                       FOR: {mission.victim_situation || "Unknown Victim"}
                     </div>
-                    <div className="font-mono text-[9px] text-dim/50">
+                    <div className="font-mono text-[9px] text-gray-300">
                       ID: {mission.id.slice(0, 6)}
                     </div>
                   </div>
@@ -516,7 +508,7 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                 LIVE RESPONDERS
               </h2>
             </div>
-            <span className="bg-surface-3 px-2 py-0.5 font-mono text-[10px] text-dim rounded-full">
+            <span className="bg-gray-100 px-2 py-0.5 font-mono text-[10px] text-gray-500 rounded-full">
               {responders.length}
             </span>
           </div>
@@ -524,7 +516,7 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 bg-surface-2 animate-pulse rounded-sm" />
+                <div key={i} className="h-16 bg-gray-50 animate-pulse rounded-sm" />
               ))}
             </div>
           ) : (
@@ -535,12 +527,12 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                 return (
                   <div
                     key={r.id}
-                    className="group flex items-start gap-3 p-3 bg-surface-2 border border-border-dim hover:border-orange/50 transition-all duration-300 rounded-sm relative overflow-hidden"
+                    className="group flex items-start gap-3 p-3 bg-white border border-gray-200 hover:border-orange/50 transition-all duration-300 rounded-sm relative overflow-hidden"
                   >
                     {r.status === 'on-mission' && (
                       <div className="absolute top-0 left-0 w-1 h-full bg-orange" />
                     )}
-                    <div className="w-10 h-10 bg-surface-3 border border-border-dim flex items-center justify-center font-display text-[16px] font-black text-ink uppercase shrink-0 group-hover:bg-surface-4 transition-colors">
+                    <div className="w-10 h-10 bg-gray-100 border border-gray-200 flex items-center justify-center font-display text-[16px] font-black text-ink uppercase shrink-0 group-hover:bg-gray-200 transition-colors">
                       {r.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -548,21 +540,21 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                         <span className="font-display text-[13px] font-bold text-ink truncate pr-2">
                           {r.name}
                         </span>
-                        <StatusBadge status={badgeStatus} />
+                        <StatusBadge status={badgeStatus} size="sm" />
                       </div>
-                      <div className="font-mono text-[9px] text-dim uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="w-1 h-1 rounded-full bg-dim/50" />
+                      <div className="font-mono text-[9px] text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="w-1 h-1 rounded-full bg-gray-300" />
                         {r.type}
                       </div>
-                      <div className="font-mono text-[9px] text-dim/60 mt-1">
+                      <div className="font-mono text-[9px] text-gray-300 mt-1">
                         {timeAgo(r.last_seen)}
                       </div>
                       
                       {allocations.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
                           {allocations.map((alloc) => (
-                            <div key={alloc.id} className="px-1.5 py-0.5 bg-ops/5 border border-ops/10 rounded-xs">
-                              <span className="font-mono text-[8px] text-ops uppercase">
+                            <div key={alloc.id} className="px-1.5 py-0.5 bg-green-50 border border-green-100 rounded-xs">
+                              <span className="font-mono text-[8px] text-green-600 uppercase">
                                 {alloc.quantity_allocated}{alloc.resource.unit} {alloc.resource.name}
                               </span>
                             </div>

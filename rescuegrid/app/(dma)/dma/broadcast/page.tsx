@@ -165,10 +165,10 @@ export default function BroadcastPage() {
   const isValid = message.trim().length > 0 && recipientCount > 0;
 
   return (
-    <div className="min-h-screen bg-void">
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center h-[52px] px-4 bg-surface-1 border-b border-border gap-4">
+    <div className="min-h-screen bg-gray-50">
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center h-[52px] px-4 bg-white border-b border-gray-100 gap-4">
         <div className="flex items-center gap-2 shrink-0">
-          <span className="font-display text-[20px] font-bold tracking-[0.08em] text-ink uppercase">
+          <span className="font-display text-[20px] font-bold tracking-[0.08em] text-gray-900 uppercase">
             RESCUE
           </span>
           <span className="font-display text-[20px] font-bold tracking-[0.08em] text-orange uppercase">
@@ -183,7 +183,7 @@ export default function BroadcastPage() {
               href={tab.href}
               className={`
                 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.15em] transition-colors relative
-                ${isActive(tab.href) ? "text-orange" : "text-dim hover:text-ink"}
+                ${isActive(tab.href) ? "text-orange" : "text-gray-400 hover:text-gray-700"}
               `}
             >
               {tab.label}
@@ -198,25 +198,25 @@ export default function BroadcastPage() {
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.1em]">
-            <span className="text-dim">CRITICAL</span>
-            <span className="text-[14px] font-bold text-alert">{counters.critical}</span>
+            <span className="text-gray-400">CRITICAL</span>
+            <span className="text-[14px] font-bold text-red-500">{counters.critical}</span>
           </div>
           <div className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.1em]">
-            <span className="text-dim">ACTIVE</span>
+            <span className="text-gray-400">ACTIVE</span>
             <span className="text-[14px] font-bold text-orange">{counters.active}</span>
           </div>
           <div className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.1em]">
-            <span className="text-dim">VOLS</span>
-            <span className="text-[14px] font-bold text-ink">{counters.vols}</span>
+            <span className="text-gray-400">VOLS</span>
+            <span className="text-[14px] font-bold text-gray-700">{counters.vols}</span>
           </div>
 
-          <div className="h-4 w-px bg-border-dim mx-1" />
+          <div className="h-4 w-px bg-gray-200 mx-1" />
 
-          <div className="flex items-center gap-1 px-2 py-1 rounded-sm bg-ops/10">
-            <span className="font-mono text-[13px] text-ops tracking-wider">{sessionElapsed}</span>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-sm bg-green-50 border border-green-100">
+            <span className="font-mono text-[13px] text-green-600 tracking-wider">{sessionElapsed}</span>
           </div>
 
-          <div className="h-4 w-px bg-border-dim mx-1" />
+          <div className="h-4 w-px bg-gray-200 mx-1" />
 
           <Button
             size="small"
@@ -228,7 +228,7 @@ export default function BroadcastPage() {
 
           <Button
             size="small"
-            variant="danger"
+            variant="critical"
             onClick={() => router.push("/dma/broadcast")}
           >
             EMERGENCY BROADCAST
@@ -236,7 +236,7 @@ export default function BroadcastPage() {
 
           <button
             onClick={handleLogout}
-            className="font-mono text-[10px] text-dim uppercase tracking-[0.1em] hover:text-alert transition-colors ml-2"
+            className="font-mono text-[10px] text-gray-400 uppercase tracking-[0.1em] hover:text-red-500 transition-colors ml-2"
           >
             LOGOUT
           </button>
@@ -245,21 +245,21 @@ export default function BroadcastPage() {
 
       <div className="pt-[52px] flex flex-col items-center justify-start px-4 py-8">
         <div className="w-full max-w-xl">
-          <h1 className="font-display font-bold text-3xl text-alert uppercase tracking-wider text-center mb-8">
+          <h1 className="font-display font-bold text-3xl text-red-500 uppercase tracking-wider text-center mb-8">
             EMERGENCY BROADCAST
           </h1>
 
           {success && (
-            <div className="bg-ops/20 border border-ops p-4 mb-6">
-              <p className="font-mono text-ops text-sm text-center uppercase tracking-wider">
+            <div className="bg-green-50 border border-green-200 p-4 mb-6 rounded-sm">
+              <p className="font-mono text-green-600 text-sm text-center uppercase tracking-wider">
                 Broadcast sent successfully
               </p>
             </div>
           )}
 
-          <div className="bg-surface-2 p-6 clip-path-tactical">
+          <div className="bg-white p-6 border border-gray-200 rounded-sm shadow-sm">
             <div className="mb-6">
-              <label className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-2">
+              <label className="font-mono text-xs text-orange uppercase tracking-[0.2em] block mb-2">
                 MESSAGE
               </label>
               <textarea
@@ -271,15 +271,15 @@ export default function BroadcastPage() {
                 placeholder="Enter emergency broadcast message..."
                 rows={6}
                 maxLength={500}
-                className="w-full px-3 py-2 bg-surface-3 border-b border-border-dim border-l-3 border-l-alert font-body text-sm text-ink placeholder:text-dim focus:outline-none focus:bg-surface-4 resize-none"
+                className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-sm font-body text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 resize-none"
               />
-              <div className="flex justify-between mt-1">
+              <div className="flex justify-between mt-2">
                 {error ? (
-                  <p className="font-mono text-[10px] text-alert">{error}</p>
+                  <p className="font-mono text-xs text-red-500">{error}</p>
                 ) : (
                   <span />
                 )}
-                <span className={`font-mono text-[10px] ${message.length > 450 ? "text-alert" : "text-dim"}`}>
+                <span className={`font-mono text-xs ${message.length > 450 ? "text-red-500" : "text-gray-400"}`}>
                   {message.length}/500
                 </span>
               </div>
@@ -287,7 +287,7 @@ export default function BroadcastPage() {
 
             <div className="mb-6">
               {loading ? (
-                <div className="font-mono text-dim text-xs">Loading task forces...</div>
+                <div className="font-mono text-gray-400 text-xs">Loading task forces...</div>
               ) : (
                 <TargetSelector
                   target={target}
@@ -299,17 +299,17 @@ export default function BroadcastPage() {
               )}
             </div>
 
-            <div className="bg-surface-3 p-3 mb-6">
-              <p className="font-mono text-[10px] text-dim uppercase tracking-wider">
+            <div className="bg-gray-50 p-3 mb-6 rounded-sm border border-gray-100">
+              <p className="font-mono text-xs text-gray-400 uppercase tracking-wider">
                 Recipients:
               </p>
-              <p className="font-mono text-xl text-ink mt-1">
+              <p className="font-mono text-xl text-gray-900 mt-1">
                 {recipientCount} volunteer{recipientCount !== 1 ? "s" : ""}
               </p>
             </div>
 
             <Button
-              variant="danger"
+              variant="critical"
               onClick={handleBroadcast}
               disabled={!isValid || isSending}
               className="w-full"
@@ -318,7 +318,7 @@ export default function BroadcastPage() {
             </Button>
 
             {!isValid && message.trim().length > 0 && recipientCount === 0 && (
-              <p className="font-mono text-[10px] text-caution text-center mt-2">
+              <p className="font-mono text-xs text-amber-500 text-center mt-2">
                 {target === "specific_task_force" && !selectedTaskForceId
                   ? "Please select a task force"
                   : "No recipients match this target"}

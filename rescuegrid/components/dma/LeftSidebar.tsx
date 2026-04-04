@@ -3,12 +3,12 @@
 import { useState, useCallback } from "react";
 
 const SITUATION_TYPES = [
-  { key: "food", label: "Food", color: "bg-ops" },
-  { key: "water", label: "Water", color: "bg-intel" },
-  { key: "medical", label: "Medical", color: "bg-caution" },
-  { key: "rescue", label: "Rescue", color: "bg-alert" },
-  { key: "shelter", label: "Shelter", color: "text-purple-500" },
-  { key: "missing", label: "Missing", color: "bg-dim" },
+  { key: "food", label: "Food", color: "bg-green-500" },
+  { key: "water", label: "Water", color: "bg-blue-500" },
+  { key: "medical", label: "Medical", color: "bg-amber-500" },
+  { key: "rescue", label: "Rescue", color: "bg-red-500" },
+  { key: "shelter", label: "Shelter", color: "bg-purple-500" },
+  { key: "missing", label: "Missing", color: "bg-gray-500" },
 ];
 
 const URGENCY_LEVELS = ["critical", "urgent", "moderate"] as const;
@@ -72,9 +72,9 @@ export default function LeftSidebar({
 
   const getBarColor = (resource: Resource) => {
     const pct = (resource.quantity / (resource.low_stock_threshold * 2 || 1)) * 100;
-    if (resource.quantity < resource.low_stock_threshold) return "bg-alert";
-    if (pct > 60) return "bg-ops";
-    return "bg-caution";
+    if (resource.quantity < resource.low_stock_threshold) return "bg-red-500";
+    if (pct > 60) return "bg-green-500";
+    return "bg-amber-500";
   };
 
   const getBarPercent = (resource: Resource) => {
@@ -97,7 +97,7 @@ export default function LeftSidebar({
   };
 
   return (
-    <aside className="w-[260px] shrink-0 bg-surface-1 border-r border-border-dim overflow-y-auto">
+    <aside className="w-[260px] shrink-0 bg-white border-r border-border-dim overflow-y-auto custom-scrollbar">
       <div className="p-4 space-y-6">
         <section>
           <h3 className="font-mono text-[10px] text-dim uppercase tracking-[0.2em] mb-3">
@@ -113,8 +113,8 @@ export default function LeftSidebar({
                   border-l-[3px] transition-all text-ink
                   ${
                     filters.situations.includes(s.key)
-                      ? "bg-orange-dim border-orange"
-                      : "bg-surface-2 border-border-dim hover:border-dim hover:bg-surface-3"
+                      ? "bg-orange-50 border-orange"
+                      : "bg-gray-50 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
                   }
                 `}
               >
@@ -146,11 +146,11 @@ export default function LeftSidebar({
                 <span
                   className={`
                     w-3 h-3 rounded-full border transition-all flex items-center justify-center
-                    ${filters.urgencies.includes(u) ? "bg-orange border-orange" : "border-dim"}
+                    ${filters.urgencies.includes(u) ? "bg-orange border-orange" : "border-gray-300"}
                   `}
                 >
                   {filters.urgencies.includes(u) && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-black" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-white" />
                   )}
                 </span>
                 {u}
@@ -167,7 +167,7 @@ export default function LeftSidebar({
             <select
               value={filters.district}
               onChange={(e) => onFiltersChange({ ...filters, district: e.target.value })}
-              className="w-full px-3 py-2 bg-surface-3 border-b border-border-dim border-l-2 border-l-orange font-body text-sm text-ink focus:outline-none focus:bg-surface-4 focus:border-orange transition-colors"
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-sm font-body text-sm text-ink focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
             >
               <option value="">All Districts</option>
               {districts.map((d) => (
@@ -202,12 +202,12 @@ export default function LeftSidebar({
                   onClick={() => onLayerToggle(layer.key, !layers[layer.key])}
                   className={`
                     w-10 h-5 rounded-full transition-all relative
-                    ${layers[layer.key] ? "bg-orange" : "bg-surface-4"}
+                    ${layers[layer.key] ? "bg-orange" : "bg-gray-200"}
                   `}
                 >
                   <span
                     className={`
-                      absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all
+                      absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all shadow-sm
                       ${layers[layer.key] ? "left-5" : "left-0.5"}
                     `}
                   />
@@ -237,7 +237,7 @@ export default function LeftSidebar({
                       {r.name}
                     </span>
                     {isLow && (
-                      <span className="font-mono text-[9px] text-alert uppercase tracking-wider px-1 py-0.5 bg-alert/10">
+                      <span className="font-mono text-[9px] text-red-600 uppercase tracking-wider px-1 py-0.5 bg-red-50 rounded-sm">
                         LOW
                       </span>
                     )}
@@ -251,7 +251,7 @@ export default function LeftSidebar({
                         onBlur={() => handleEditSave(r.id)}
                         onKeyDown={(e) => e.key === "Enter" && handleEditSave(r.id)}
                         autoFocus
-                        className="w-16 px-2 py-0.5 bg-surface-4 border border-orange font-mono text-[12px] text-ink focus:outline-none"
+                        className="w-16 px-2 py-0.5 bg-white border border-orange rounded-sm font-mono text-[12px] text-ink focus:outline-none focus:ring-2 focus:ring-orange/20"
                       />
                     ) : (
                       <button
@@ -262,9 +262,9 @@ export default function LeftSidebar({
                       </button>
                     )}
                   </div>
-                  <div className="h-[3px] bg-surface-4 w-full">
+                  <div className="h-[3px] bg-gray-100 w-full rounded-full overflow-hidden">
                     <div
-                      className={`h-full ${barColor} transition-all`}
+                      className={`h-full ${barColor} transition-all rounded-full`}
                       style={{ width: `${barPercent}%` }}
                     />
                   </div>

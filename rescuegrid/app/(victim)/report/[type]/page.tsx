@@ -222,17 +222,17 @@ export default function ReportTypePage() {
   const placeholder = SITUATION_PLACEHOLDERS[type] || "Describe the emergency...";
 
   return (
-    <div className="min-h-screen bg-void flex flex-col">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border-dim">
+    <div className="min-h-screen bg-white flex flex-col">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white">
         <button
           onClick={() => router.push("/")}
-          className="text-muted hover:text-orange transition-colors"
+          className="text-gray-400 hover:text-orange transition-colors"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </button>
-        <span className="font-display text-lg font-semibold text-ink uppercase tracking-wide">
+        <span className="font-display text-lg font-semibold text-gray-900 uppercase tracking-wide">
           {situationLabel}
         </span>
       </div>
@@ -241,16 +241,16 @@ export default function ReportTypePage() {
         <div>
           <div
             ref={mapContainerRef}
-            className="w-full h-[160px] rounded overflow-hidden border border-border-dim"
+            className="w-full h-[160px] rounded overflow-hidden border border-gray-200"
           />
           <div className="mt-2 flex items-center justify-between">
-            <p className="font-mono text-[11px] text-dim uppercase tracking-wide">
+            <p className="font-mono text-[11px] text-gray-400 uppercase tracking-wide">
               📍 {placeName || (locating ? "Getting location..." : "Tap map to set location")}
             </p>
             <button
               onClick={requestLocation}
               disabled={locating}
-              className="flex items-center gap-1 font-mono text-[10px] text-muted uppercase tracking-[0.1em] hover:text-orange transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 font-mono text-[10px] text-gray-400 uppercase tracking-[0.1em] hover:text-orange transition-colors disabled:opacity-50"
             >
               <svg
                 width="12"
@@ -268,12 +268,12 @@ export default function ReportTypePage() {
             </button>
           </div>
           {error && !locating && (
-            <p className="font-mono text-[10px] text-amber mt-1">{error}</p>
+            <p className="font-mono text-[10px] text-amber-600 mt-1">{error}</p>
           )}
         </div>
 
         <div>
-          <label className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">
+          <label className="font-mono text-xs text-orange uppercase tracking-[0.2em] block mb-1.5">
             People Affected *
           </label>
           <input
@@ -283,13 +283,13 @@ export default function ReportTypePage() {
             value={peopleCount}
             onChange={(e) => setPeopleCount(e.target.value)}
             placeholder="e.g., 5"
-            className="w-full px-3 py-2 bg-surface-3 border-b border-border-dim border-l-2 border-l-orange font-body text-sm text-ink placeholder:text-dim focus:outline-none focus:bg-surface-4 focus:border-orange transition-colors"
+            className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-sm font-body text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
           />
-          <p className="font-mono text-[10px] text-dim mt-1">How many people need {type}?</p>
+          <p className="font-mono text-[10px] text-gray-400 mt-1">How many people need {type}?</p>
         </div>
 
         <div>
-          <label className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">
+          <label className="font-mono text-xs text-orange uppercase tracking-[0.2em] block mb-1.5">
             Phone Number *
           </label>
           <input
@@ -298,12 +298,12 @@ export default function ReportTypePage() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="+91 XXXXXXXXXX"
-            className="w-full px-3 py-2 bg-surface-3 border-b border-border-dim border-l-2 border-l-orange font-body text-sm text-ink placeholder:text-dim focus:outline-none focus:bg-surface-4 focus:border-orange transition-colors"
+            className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-sm font-body text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
           />
         </div>
 
         <div>
-          <label className="font-mono text-[10px] text-orange uppercase tracking-[0.2em] block mb-1">
+          <label className="font-mono text-xs text-orange uppercase tracking-[0.2em] block mb-1.5">
             Additional Details (optional)
           </label>
           <div className="relative">
@@ -312,28 +312,24 @@ export default function ReportTypePage() {
               onChange={(e) => setMessage(e.target.value.slice(0, 280))}
               placeholder={placeholder}
               rows={3}
-              className="w-full px-3 py-2 bg-surface-3 border-b border-border-dim border-l-2 border-l-orange font-body text-sm text-ink placeholder:text-dim focus:outline-none focus:bg-surface-4 focus:border-orange transition-colors resize-none"
+              className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-sm font-body text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors resize-none"
             />
-            <span className="absolute bottom-2 right-2 font-mono text-[10px] text-dim">
+            <span className="absolute bottom-2 right-2 font-mono text-[10px] text-gray-400">
               {message.length}/280
             </span>
           </div>
         </div>
 
         {error && (
-          <p className="text-alert font-mono text-[11px]">{error}</p>
+          <p className="text-red-500 font-mono text-xs">{error}</p>
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-void border-t border-border-dim">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100">
         <button
           onClick={handleSubmit}
           disabled={!phone.trim() || !lat || loading}
-          className="w-full text-center font-display font-semibold text-[13px] uppercase tracking-[0.15em] text-black bg-orange py-3 px-6 transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          style={{
-            clipPath:
-              "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))",
-          }}
+          className="w-full text-center font-display font-semibold text-base uppercase tracking-[0.15em] text-white bg-orange py-3.5 px-6 transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-sm"
         >
           {loading ? (
             <>

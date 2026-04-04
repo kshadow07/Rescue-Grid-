@@ -76,7 +76,7 @@ export default function ChatScrollArea({
     <div className="flex items-center justify-center h-full">
       <div className="flex flex-col items-center gap-2">
         <div className="w-6 h-6 border-2 border-orange border-t-transparent rounded-full animate-spin" />
-        <span className="font-mono text-[10px] text-dim">LOADING...</span>
+        <span className="font-mono text-[10px] text-gray-400">LOADING...</span>
       </div>
     </div>
   );
@@ -84,15 +84,15 @@ export default function ChatScrollArea({
   const defaultEmpty = (
     <div className="flex items-center justify-center h-full">
       <div className="text-center">
-        <p className="font-display text-[14px] text-ink mb-1">NO MESSAGES</p>
-        <p className="font-mono text-[10px] text-dim">Start the conversation</p>
+        <p className="font-display text-[14px] text-gray-700 mb-1">NO MESSAGES</p>
+        <p className="font-mono text-[10px] text-gray-400">Start the conversation</p>
       </div>
     </div>
   );
 
   return (
     <div
-      className={`flex flex-col bg-void ${className}`}
+      className={`flex flex-col bg-white ${className}`}
       style={{ height: '100dvh', overflow: 'hidden' }}
     >
       <div className="flex-shrink-0">
@@ -121,8 +121,7 @@ export default function ChatScrollArea({
             scrollToBottom('smooth');
             setNewMessagesCount(0);
           }}
-          className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-orange text-void px-4 py-2 rounded-full font-mono text-[11px] font-bold shadow-lg flex items-center gap-2 z-10"
-          style={{ clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))' }}
+          className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-orange text-white px-4 py-2 rounded-full font-mono text-[11px] font-bold shadow-lg flex items-center gap-2 z-10"
         >
           ↓ {newMessagesCount} new message{newMessagesCount > 1 ? 's' : ''}
         </button>

@@ -474,8 +474,8 @@ function MessagesContent() {
 
   if (loading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-void">
-        <span className="font-mono text-[11px] text-dim uppercase tracking-wider">
+      <div className="h-screen w-screen flex items-center justify-center bg-white">
+        <span className="font-mono text-[11px] text-gray-400 uppercase tracking-wider">
           AUTHENTICATING...
         </span>
       </div>
@@ -483,14 +483,14 @@ function MessagesContent() {
   }
 
   return (
-    <div className="w-screen bg-void overflow-hidden" style={{ height: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <div className="w-screen bg-gray-50 overflow-hidden" style={{ height: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <Topbar loginTime={loginTime} />
 
       <div className="flex flex-1 min-h-0" style={{ paddingTop: '52px' }}>
         {/* Channel List Panel */}
-        <div className="w-[280px] bg-surface-1 border-r border-border-dim flex flex-col shrink-0 overflow-hidden">
-          <div className="p-3 border-b border-border-dim">
-            <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-ink mb-3">
+        <div className="w-[280px] bg-white border-r border-gray-100 flex flex-col shrink-0 overflow-hidden">
+          <div className="p-3 border-b border-gray-100">
+            <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-gray-900 mb-3">
               Communication Hub
             </h2>
             

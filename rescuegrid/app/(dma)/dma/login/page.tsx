@@ -38,23 +38,19 @@ export default function DmaLoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-void flex flex-col items-center justify-center px-4">
+    <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <h1
-            className="font-display text-4xl font-bold tracking-[0.08em] mb-1"
-            style={{ clipPath: 'var(--clip-tactical)' }}
-          >
-            <span className="text-ink">RESCUE</span>
+          <h1 className="font-display text-4xl font-bold tracking-[0.08em] mb-1">
+            <span className="text-gray-900">RESCUE</span>
             <span className="text-orange">GRID</span>
           </h1>
-          <p className="font-body text-muted text-sm mt-2">DMA Command Center</p>
+          <p className="font-body text-base text-gray-500 mt-2">DMA Command Center</p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col gap-5 p-6 bg-surface-1"
-          style={{ clipPath: 'var(--clip-tactical)' }}
+          className="flex flex-col gap-5 p-8 bg-white border border-gray-200 rounded-sm shadow-sm"
         >
           <InputField
             label="EMAIL"
@@ -79,7 +75,7 @@ export default function DmaLoginPage() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-[34px] text-dim hover:text-orange transition-colors"
+              className="absolute right-3 top-[38px] text-gray-400 hover:text-orange transition-colors"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? (
@@ -97,7 +93,7 @@ export default function DmaLoginPage() {
           </div>
 
           {error && (
-            <p className="font-mono text-[11px] text-alert">{error}</p>
+            <p className="font-mono text-xs text-red-600">{error}</p>
           )}
 
           <Button

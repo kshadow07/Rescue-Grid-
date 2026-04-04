@@ -125,7 +125,7 @@ export default function Topbar({ loginTime }: TopbarProps) {
   const isActive = (href: string) => pathname === href;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex items-center h-[52px] px-4 bg-surface-1 border-b border-border gap-4">
+    <header className="fixed top-0 left-0 right-0 z-50 flex items-center h-[52px] px-4 bg-white border-b border-border-dim gap-4">
       <div className="flex items-center gap-2 shrink-0">
         <span className="font-display text-[20px] font-bold tracking-[0.08em] text-ink uppercase">
           RESCUE
@@ -159,9 +159,9 @@ export default function Topbar({ loginTime }: TopbarProps) {
         <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em]">
           <span className="text-dim">CRITICAL</span>
           {loading ? (
-            <div className="w-4 h-4 bg-alert/20 animate-pulse rounded-sm" />
+            <div className="w-4 h-4 bg-red-100 animate-pulse rounded-sm" />
           ) : (
-            <span className="text-[14px] font-bold text-alert">{counters.critical}</span>
+            <span className="text-[16px] font-bold text-alert animate-critical-pulse">{counters.critical}</span>
           )}
         </div>
         <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em]">
@@ -169,22 +169,22 @@ export default function Topbar({ loginTime }: TopbarProps) {
           {loading ? (
             <div className="w-4 h-4 bg-orange/20 animate-pulse rounded-sm" />
           ) : (
-            <span className="text-[14px] font-bold text-orange">{counters.active}</span>
+            <span className="text-[16px] font-bold text-orange">{counters.active}</span>
           )}
         </div>
         <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em]">
           <span className="text-dim">VOLS</span>
           {loading ? (
-            <div className="w-4 h-4 bg-white/10 animate-pulse rounded-sm" />
+            <div className="w-4 h-4 bg-gray-100 animate-pulse rounded-sm" />
           ) : (
-            <span className="text-[14px] font-bold text-ink">{counters.vols}</span>
+            <span className="text-[16px] font-bold text-ink">{counters.vols}</span>
           )}
         </div>
 
         <div className="h-4 w-px bg-border-dim mx-1" />
 
-        <div className="flex items-center gap-1 px-2 py-1 rounded-sm bg-ops/10">
-          <span className="font-mono text-[13px] text-ops tracking-wider">{sessionElapsed}</span>
+        <div className="flex items-center gap-1 px-2 py-1 rounded-sm bg-green-50 border border-green-100">
+          <span className="font-mono text-[13px] text-green-600 tracking-wider">{sessionElapsed}</span>
         </div>
 
         <div className="h-4 w-px bg-border-dim mx-1" />
@@ -199,7 +199,7 @@ export default function Topbar({ loginTime }: TopbarProps) {
 
         <Button
           size="small"
-          variant="danger"
+          variant="critical"
           onClick={() => router.push("/dma/broadcast")}
         >
           EMERGENCY BROADCAST

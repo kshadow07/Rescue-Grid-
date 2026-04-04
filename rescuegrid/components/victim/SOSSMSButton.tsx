@@ -147,17 +147,14 @@ export default function SOSSMSButton({
       <button
         onClick={handleOpenSMS}
         disabled={isLoading}
-        className="w-full text-center font-display font-bold text-[12px] uppercase tracking-[0.15em] text-white bg-alert py-2.5 px-4 transition-all hover:bg-alert/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        style={{
-          clipPath: "polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px))",
-        }}
+        className="w-full text-center font-display font-bold text-lg uppercase tracking-[0.15em] text-white bg-red-500 py-4 px-4 transition-all hover:bg-red-600 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-sm shadow-lg shadow-red-500/30 animate-attention-bounce"
       >
         {isLoading ? (
           <>
             <svg
               className="animate-spin"
-              width="14"
-              height="14"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -185,8 +182,8 @@ export default function SOSSMSButton({
       )}
 
       {error && (
-        <div className="mt-2 p-2 bg-alert/10 border border-alert/30">
-          <p className="font-mono text-[10px] text-alert text-center">{error}</p>
+        <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-sm">
+          <p className="font-mono text-xs text-red-600 text-center">{error}</p>
         </div>
       )}
     </>

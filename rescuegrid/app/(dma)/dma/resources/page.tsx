@@ -122,12 +122,12 @@ export default function ResourcesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-void">
+    <div className="min-h-screen bg-gray-50">
       <Topbar loginTime={loginTime} />
       <div className="pt-[52px]">
-        <div className="border-b border-border">
+        <div className="border-b border-gray-200 bg-white">
           <div className="px-6 py-4 flex justify-between items-center">
-            <h1 className="font-display font-bold text-2xl text-orange uppercase tracking-wider">
+            <h1 className="font-display font-bold text-2xl text-gray-900 uppercase tracking-wider">
               RESOURCES
             </h1>
             <Button onClick={() => setShowCreateModal(true)}>
@@ -141,7 +141,7 @@ export default function ResourcesPage() {
             className={`px-4 py-2 font-mono text-xs uppercase tracking-wider border-b-2 transition-colors ${
               activeTab === "inventory"
                 ? "text-orange border-orange"
-                : "text-muted border-transparent hover:text-ink"
+                : "text-gray-400 border-transparent hover:text-gray-700"
             }`}
           >
             INVENTORY
@@ -151,7 +151,7 @@ export default function ResourcesPage() {
             className={`px-4 py-2 font-mono text-xs uppercase tracking-wider border-b-2 transition-colors ${
               activeTab === "allocations"
                 ? "text-orange border-orange"
-                : "text-muted border-transparent hover:text-ink"
+                : "text-gray-400 border-transparent hover:text-gray-700"
             }`}
           >
             ALLOCATIONS
@@ -163,14 +163,14 @@ export default function ResourcesPage() {
         {activeTab === "inventory" ? (
           loading ? (
             <div className="text-center py-12">
-              <p className="font-mono text-dim text-sm">Loading resources...</p>
+              <p className="font-mono text-gray-400 text-sm">Loading resources...</p>
             </div>
           ) : resources.length === 0 ? (
             <div className="text-center py-12">
-              <p className="font-mono text-dim text-sm uppercase tracking-wider">
+              <p className="font-mono text-gray-400 text-sm uppercase tracking-wider">
                 NO RESOURCES LOGGED
               </p>
-              <p className="font-mono text-dim text-xs mt-2">
+              <p className="font-mono text-gray-400 text-xs mt-2">
                 Click &quot;+ ADD RESOURCE&quot; to add your first resource
               </p>
             </div>

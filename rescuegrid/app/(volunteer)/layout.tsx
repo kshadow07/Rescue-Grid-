@@ -219,12 +219,12 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
   const isAuthPage = pathname === '/volunteer/login' || pathname === '/volunteer/login/verify';
 
   const content = (
-    <div className="min-h-screen bg-[#07080A] flex flex-col">
-      <div className="h-10 bg-[#0D0F12] border-b border-[rgba(255,255,255,0.06)] flex items-center justify-between px-4">
-        <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#8A8F99] tracking-wider">{currentTime}</span>
+    <div className="min-h-screen bg-[#FFFFFF] flex flex-col">
+      <div className="h-10 bg-[#FAFBFC] border-b border-[rgba(0,0,0,0.08)] flex items-center justify-between px-4">
+        <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#5A6270] tracking-wider">{currentTime}</span>
         <div className="flex items-center gap-2">
           <span className="font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.15em]">
-            <span className="text-[#F0EDE8]">RESCUE</span>
+            <span className="text-[#1A1D21]">RESCUE</span>
             <span className="text-[#FF6B2B]">GRID</span>
           </span>
         </div>
@@ -234,17 +234,17 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
       {activeAssignment && (
         <Link
           href="/volunteer/active"
-          className="bg-[#FF6B2B] text-[#07080A] flex items-center justify-between px-4 h-11 hover:bg-[#FF6B2B]/90 transition-colors cursor-pointer"
+          className="bg-[#FF6B2B] text-white flex items-center justify-between px-4 h-11 hover:bg-[#FF6B2B]/90 transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-[#07080A] rounded-full animate-pulse" />
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
             <span className="font-[family-name:var(--font-display)] text-[13px] font-semibold uppercase tracking-wide truncate max-w-[180px]">
               {activeAssignment.task}
             </span>
           </div>
           <div className="flex items-center gap-3">
             {activeAssignment.timer && (
-              <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#07080A]/80">
+              <span className="font-[family-name:var(--font-mono)] text-[11px] text-white/80">
                 {getTimerRemaining(activeAssignment.timer)}
               </span>
             )}
@@ -258,7 +258,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
       <main className={`flex-1 overflow-y-auto ${hideNav ? '' : 'pb-20'}`}>{children}</main>
 
       {!hideNav && (
-      <nav className="fixed bottom-0 left-0 right-0 h-[68px] bg-[#0D0F12] border-t border-[rgba(255,255,255,0.06)] flex items-stretch shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
+      <nav className="fixed bottom-0 left-0 right-0 h-[68px] bg-white border-t border-[rgba(0,0,0,0.08)] flex items-stretch shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
         {tabs.map((tab) => {
           const active = isActive(tab.href);
           return (
@@ -266,7 +266,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
               key={tab.href}
               href={tab.href}
               className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all relative ${
-                active ? 'text-[#FF6B2B]' : 'text-[#8A8F99]'
+                active ? 'text-[#FF6B2B]' : 'text-[#5A6270]'
               }`}
             >
               {active && (
@@ -279,7 +279,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
                   <span className={`absolute -top-1 -right-2 min-w-[16px] h-4 flex items-center justify-center text-[9px] font-[family-name:var(--font-mono)] font-bold rounded-full ${
                     tab.badgeType === 'live' 
                       ? 'text-[#2ECC71] animate-pulse' 
-                      : 'bg-[#FF6B2B] text-[#07080A]'
+                      : 'bg-[#FF6B2B] text-white'
                   }`}>
                     {tab.badge}
                   </span>

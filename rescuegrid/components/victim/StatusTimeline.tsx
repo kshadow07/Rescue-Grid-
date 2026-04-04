@@ -32,10 +32,9 @@ export default function StatusTimeline({ status, createdAt }: StatusTimelineProp
   const currentIndex = getStepIndex(status);
 
   return (
-    <div className="w-full px-4 py-6 bg-surface-2 border-y border-border-dim">
+    <div className="w-full px-4 py-6 bg-gray-50 border-y border-gray-200">
       <div className="relative flex justify-between">
-        {/* Progress Line */}
-        <div className="absolute top-4 left-0 w-full h-0.5 bg-border-dim -z-0">
+        <div className="absolute top-4 left-0 w-full h-0.5 bg-gray-200 -z-0">
           <div 
             className="h-full bg-orange transition-all duration-500" 
             style={{ width: `${(currentIndex / (STEPS.length - 1)) * 100}%` }}
@@ -52,15 +51,15 @@ export default function StatusTimeline({ status, createdAt }: StatusTimelineProp
             <div key={step.id} className="relative z-10 flex flex-col items-center gap-2">
               <div 
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  isCompleted ? 'bg-orange text-black' : 
-                  isActive ? 'bg-orange text-black animate-pulse shadow-[0_0_15px_rgba(255,107,43,0.5)]' : 
-                  'bg-surface-3 text-dim border border-border-dim'
+                  isCompleted ? 'bg-orange text-white' : 
+                  isActive ? 'bg-orange text-white animate-pulse shadow-lg shadow-orange/30' : 
+                  'bg-gray-100 text-gray-400 border border-gray-200'
                 }`}
               >
                 <Icon className="w-4 h-4" />
               </div>
               <span className={`font-mono text-[8px] uppercase tracking-wider text-center w-12 ${
-                isActive ? 'text-orange font-bold' : 'text-dim'
+                isActive ? 'text-orange font-bold' : 'text-gray-400'
               }`}>
                 {step.label}
               </span>

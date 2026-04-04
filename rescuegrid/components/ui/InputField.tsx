@@ -9,10 +9,10 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
     const inputId = id || label.toLowerCase().replace(/\s+/g, "-");
 
     return (
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1.5">
         <label
           htmlFor={inputId}
-          className="font-mono text-[10px] text-orange uppercase tracking-[0.2em]"
+          className="font-mono text-xs text-orange uppercase tracking-[0.2em] font-medium"
         >
           {label}
         </label>
@@ -20,12 +20,11 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
           ref={ref}
           id={inputId}
           className={`
-            w-full px-3 py-2
-            bg-surface-3 border-b border-border-dim
-            border-l-3 border-l-orange
-            font-body text-sm text-ink
-            placeholder:text-dim
-            focus:outline-none focus:bg-surface-4 focus:border-orange
+            w-full px-3 py-3
+            bg-gray-50 border border-gray-200 rounded-sm
+            font-body text-base text-gray-900
+            placeholder:text-gray-400
+            focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange focus:bg-white
             transition-colors duration-150
             ${className}
           `}

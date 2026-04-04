@@ -169,7 +169,7 @@ function DashboardContent() {
 
   if (authLoading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-void">
+      <div className="h-screen w-screen flex items-center justify-center bg-white">
         <span className="font-mono text-[11px] text-dim uppercase tracking-wider">
           AUTHENTICATING...
         </span>
@@ -178,7 +178,7 @@ function DashboardContent() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-void overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-white overflow-hidden">
       <Topbar loginTime={loginTime} />
 
       <div className="flex flex-1 mt-[52px] overflow-hidden">
@@ -226,7 +226,7 @@ function DashboardContent() {
 export default function DmaDashboardPage() {
   return (
     <Suspense fallback={
-      <div className="h-screen w-screen flex items-center justify-center bg-void">
+      <div className="h-screen w-screen flex items-center justify-center bg-white">
         <span className="font-mono text-[11px] text-dim uppercase tracking-wider">
           LOADING...
         </span>
