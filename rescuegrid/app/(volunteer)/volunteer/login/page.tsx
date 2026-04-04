@@ -17,7 +17,7 @@ export default function VolunteerLoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/volunteer/login', {
+      const res = await fetch('/api/volunteer/auth/otp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone }),
@@ -25,13 +25,13 @@ export default function VolunteerLoginPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || 'Login failed');
+        setError(data.error || 'Failed to send OTP');
         setLoading(false);
         return;
       }
 
-      router.push('/volunteer/missions');
-      router.refresh();
+      localStorage.setItem('volunteer_phone', phone);
+      router.push('/volunteer/login/verify');
     } catch {
       setError('Network error. Please try again.');
       setLoading(false);
@@ -69,7 +69,7 @@ export default function VolunteerLoginPage() {
           />
 
           <p className="font-mono text-[10px] text-dim uppercase tracking-wider">
-            DEMO MODE — ENTER ANY REGISTERED PHONE
+            ENTER YOUR REGISTERED PHONE
           </p>
 
           {error && (
@@ -82,7 +82,7 @@ export default function VolunteerLoginPage() {
             disabled={loading || !phone}
             className="w-full mt-2"
           >
-            {loading ? 'LOGGING IN...' : 'LOGIN →'}
+            {loading ? 'SENDING OTP...' : 'LOGIN →'}
           </Button>
         </form>
       </div>

@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { LocationProvider } from '@/components/volunteer/LocationProvider';
+import LocationPermissionModal from '@/components/volunteer/LocationPermissionModal';
 
 interface ActiveAssignment {
   id: string;
@@ -180,7 +182,10 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
     return pathname === href;
   };
 
-  return (
+  const hideNav = pathname === '/volunteer/login' || pathname === '/volunteer/login/verify';
+  const isAuthPage = pathname === '/volunteer/login' || pathname === '/volunteer/login/verify';
+
+  const content = (
     <div className="min-h-screen bg-[#07080A] flex flex-col">
       <div className="h-10 bg-[#0D0F12] border-b border-[rgba(255,255,255,0.06)] flex items-center justify-between px-4">
         <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#8A8F99] tracking-wider">{currentTime}</span>
@@ -217,8 +222,9 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
         </Link>
       )}
 
-      <main className="flex-1 overflow-y-auto pb-20">{children}</main>
+      <main className={`flex-1 overflow-y-auto ${hideNav ? '' : 'pb-20'}`}>{children}</main>
 
+      {!hideNav && (
       <nav className="fixed bottom-0 left-0 right-0 h-[68px] bg-[#0D0F12] border-t border-[rgba(255,255,255,0.06)] flex items-stretch shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
         {tabs.map((tab) => {
           const active = isActive(tab.href);
@@ -252,6 +258,19 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
           );
         })}
       </nav>
+      )}
     </div>
+  );
+
+  // Don't wrap auth pages with LocationProvider
+  if (isAuthPage) {
+    return content;
+  }
+
+  return (
+    <LocationProvider>
+      {content}
+      <LocationPermissionModal />
+    </LocationProvider>
   );
 }
