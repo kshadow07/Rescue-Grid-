@@ -1,0 +1,38 @@
+* [33m8833bf5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mrefactor[m[33m)[m Merge remote changes
+* [33mb6e3a2b[m[33m ([m[1;31morigin/refactor[m[33m)[m docs: add project documentation, architecture diagram, and banner assets
+*   [33m950dcf7[m docs: add project documentation, architecture diagram, and banner image
+[32m|[m[33m\[m  
+[32m|[m *   [33maa25242[m Merge pull request #3 from kshadow07/main
+[32m|[m [34m|[m[35m\[m  
+[32m|[m [34m|[m *   [33mf322350[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Merge pull request #2 from kshadow07/refactor
+[32m|[m [34m|[m [36m|[m[34m\[m  
+[32m|[m [34m|[m [36m|[m[34m/[m  
+[32m|[m [34m|[m[34m/[m[36m|[m   
+* [34m/[m [36m|[m [33m84633cb[m Updated README.md
+[34m|[m[34m/[m [36m/[m  
+* [36m|[m [33m8b2329d[m Merge pull request #1 from kshadow07/main
+[1;32m|[m[36m\[m[36m|[m 
+[1;32m|[m * [33m3b169bb[m refactor(volunteer-map): migrate to LocationProvider and improve map handling
+[1;32m|[m * [33m354670e[m feat(volunteer): add real-time updates and resource allocation visibility
+[1;32m|[m * [33m4f6b839[m feat(volunteer): implement phone OTP authentication with Supabase
+[1;32m|[m[1;32m/[m  
+* [33m7245e29[m[33m ([m[1;32mmain[m[33m)[m feat(resources): add resource management with allocation and broadcast features
+* [33m4183a05[m fixed
+* [33m738e210[m feat(messaging): add volunteer inbox and real-time chat improvements
+* [33m8c88b09[m fixced rthe messaginfg system almost
+* [33m93c7f03[m feat(dma): add victim thread support and message read tracking
+* [33m45eaef2[m fix: resolve assignment status bugs and add messaging components
+* [33mbc67aa4[m feat: replace polling with real-time subscriptions across multiple pages
+* [33m315663a[m feat(volunteer): add API routes and layout for volunteer interface
+* [33m5895ad9[m phase  7 half done done
+* [33m98813a8[m feat(CreateTaskForceModal): improve member selection with dropdown and tags
+* [33mbd0283a[m feat(dma):Phase 6 done  implement task force management with deployments page and CRUD APIs
+* [33m1688e04[m phase 5 almost done with some limiatation
+* [33m7242b1d[m phase 4 almost done going for phase 5
+* [33m35c5acd[m phase 4 partially done
+* [33m5c50270[m feat(victim):Phase 3 implement full victim report flow with live messaging
+* [33mac86bba[m feat(auth): Phase 2 done implement dual login flows for DMA and volunteer users
+* [33mb9295cc[m feat: Phase 0 and 1 COMPLETED scaffold rescuegrid next.js app with ui components and database schema
+* [33m7c081ff[m updated the file
+* [33mdd78f73[m added the project details
+* [33m1a176b6[m Initial commit
