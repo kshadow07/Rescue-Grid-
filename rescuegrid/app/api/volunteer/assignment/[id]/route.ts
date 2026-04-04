@@ -26,7 +26,7 @@ export async function PATCH(
     const { status: statusFromBody, action } = body;
     const status = statusFromBody || action;
 
-    if (!status || !['on_my_way', 'arrived', 'completed', 'failed'].includes(status)) {
+    if (!status || !['active', 'en_route', 'on_my_way', 'arrived', 'completed', 'failed'].includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
@@ -64,8 +64,9 @@ export async function PATCH(
     if (assignment.victim_report_id) {
       let victimStatus = 'assigned';
       if (status === 'completed') victimStatus = 'resolved';
-      else if (status === 'on_my_way') victimStatus = 'en_route';
+      else if (status === 'en_route' || status === 'on_my_way') victimStatus = 'en_route';
       else if (status === 'arrived') victimStatus = 'arrived';
+      else if (status === 'active') victimStatus = 'active';
       
       await supabase
         .from('victim_report')

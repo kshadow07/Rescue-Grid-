@@ -147,13 +147,15 @@ function DashboardContent() {
 
   const handleResolveReport = useCallback(async (reportId: string) => {
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('victim_report')
-        .update({ status: 'resolved' })
-        .eq('id', reportId);
+      const res = await fetch('/api/dma/report/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_id: reportId }),
+      });
       
-      if (error) throw error;
+      if (!res.ok) {
+        throw new Error('Failed to resolve report');
+      }
       
       // Deselect the report to "remove" it from active focus
       setSelectedReportId(null);

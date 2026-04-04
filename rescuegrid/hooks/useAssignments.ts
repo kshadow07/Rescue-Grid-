@@ -74,11 +74,25 @@ export function useAssignments(filter?: string) {
       },
       onUpdate: (updatedAss) => {
         setAssignments((prev) => {
-          // If the status is no longer relevant for the current view, remove it
-          if (filter && updatedAss.status === 'completed' || updatedAss.status === 'failed') {
+          const isRelevant = ['open', 'active', 'en_route', 'on_my_way', 'arrived', 'on-mission'].includes(updatedAss.status);
+          
+          if (!isRelevant && filter) {
              return prev.filter(a => a.id !== updatedAss.id);
           }
-          return prev.map((a) => (a.id === updatedAss.id ? updatedAss : a));
+
+          const index = prev.findIndex(a => a.id === updatedAss.id);
+          if (index !== -1) {
+            // Keep existing fields like victim_report if they aren't in the update
+            const merged = { ...prev[index], ...updatedAss };
+            return prev.map((a, i) => i === index ? merged : a);
+          } else if (isRelevant) {
+             // If it's a new assignment that just became relevant, we might want to add it,
+             // but we'd need to fetch the full details (joins). 
+             // For now, let's just refresh if we see something new and relevant.
+             fetchAssignments();
+             return prev;
+          }
+          return prev;
         });
       },
       onDelete: (deletedAss) => {

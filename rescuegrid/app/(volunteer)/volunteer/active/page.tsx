@@ -3,7 +3,22 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
-import { useAssignments, Assignment } from '@/hooks/useAssignments';
+
+interface Assignment {
+  id: string;
+  task: string;
+  location_label: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  urgency: string;
+  status: string;
+  assigned_to_volunteer: string | null;
+  assigned_to_taskforce: string | null;
+  victim_report_id: string | null;
+  timer: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 interface TFMember {
   id: string;
@@ -15,32 +30,37 @@ interface TFMember {
 
 export default function ActiveMissionPage() {
   const router = useRouter();
-  const [volunteerId, setVolunteerId] = useState<string | null>(null);
+  const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [tfMembers, setTfMembers] = useState<TFMember[]>([]);
   const [tfName, setTfName] = useState<string>('');
   const [updating, setUpdating] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const getVolunteerId = async () => {
-      const cookie = document.cookie.split(';').find(c => c.trim().startsWith('volunteer_session='));
-      if (cookie) {
-        try {
-          const session = JSON.parse(decodeURIComponent(cookie.split('=')[1]));
-          setVolunteerId(session.volunteer_id);
-        } catch {}
+  // Directly fetch the active assignment
+  const fetchActiveAssignment = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/volunteer/assignment/active');
+      if (res.ok) {
+        const data = await res.json();
+        setAssignment(data);
       }
-    };
-    getVolunteerId();
+    } catch (err) {
+      console.error('Error fetching active assignment:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const { assignments: activeAssignments, loading, refresh } = useAssignments(
-    volunteerId ? `assigned_to_volunteer=eq.${volunteerId}` : undefined
-  );
+  useEffect(() => {
+    fetchActiveAssignment();
+  }, [fetchActiveAssignment]);
 
-  // Get the most recent active assignment
-  const assignment = activeAssignments.find(a => 
-    a.status === 'active' || a.status === 'on_my_way' || a.status === 'arrived' || a.status === 'en_route'
-  ) || null;
+  // Poll for updates every 5 seconds to ensure sync
+  useEffect(() => {
+    const interval = setInterval(fetchActiveAssignment, 5000);
+    return () => clearInterval(interval);
+  }, [fetchActiveAssignment]);
 
   useEffect(() => {
     const fetchTfDetails = async () => {
@@ -78,8 +98,8 @@ export default function ActiveMissionPage() {
         if (newStatus === 'completed' || newStatus === 'failed') {
           router.push('/volunteer/missions');
         } else {
-          // Explicitly refresh to ensure UI stays in sync with potential server-side changes
-          refresh();
+          // Refresh to ensure UI stays in sync
+          await fetchActiveAssignment();
         }
       }
     } catch {}

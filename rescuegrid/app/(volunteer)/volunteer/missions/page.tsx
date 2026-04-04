@@ -15,33 +15,45 @@ export default function MissionsPage() {
 
   useEffect(() => {
     const getVolunteerId = async () => {
-      const cookie = document.cookie.split(';').find(c => c.trim().startsWith('volunteer_session='));
-      if (cookie) {
-        try {
-          const session = JSON.parse(decodeURIComponent(cookie.split('=')[1]));
-          setVolunteerId(session.volunteer_id);
-        } catch {}
+      try {
+        const res = await fetch('/api/volunteer/me');
+        if (res.ok) {
+          const data = await res.json();
+          setVolunteerId(data.id);
+        } else {
+          router.push('/volunteer/login');
+        }
+      } catch {
+        router.push('/volunteer/login');
       }
     };
     getVolunteerId();
-  }, []);
+  }, [router]);
 
   const { assignments: queueAssignments, loading } = useAssignments(
     volunteerId ? `assigned_to_volunteer=eq.${volunteerId}` : undefined
   );
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const res = await fetch('/api/volunteer/assignment/history');
-        if (res.ok) {
-          const data = await res.json();
-          setHistoryAssignments(data);
-        }
-      } catch {}
-    };
-    fetchHistory();
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res = await fetch('/api/volunteer/assignment/history');
+      if (res.ok) {
+        const data = await res.json();
+        setHistoryAssignments(data);
+      }
+    } catch {}
   }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  // Refresh history when switching to history tab
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchHistory();
+    }
+  }, [activeTab, fetchHistory]);
 
   const handleStart = async (id: string) => {
     setActionLoading(id);
@@ -49,7 +61,7 @@ export default function MissionsPage() {
       const res = await fetch(`/api/volunteer/assignment/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'on_my_way' }),
+        body: JSON.stringify({ status: 'en_route' }),
       });
       if (res.ok) {
         router.push('/volunteer/active');

@@ -28,7 +28,7 @@ export async function GET() {
         victim_report:victim_report_id(id, situation, urgency, status)
       `)
       .eq('assigned_to_volunteer', volunteerId)
-      .in('status', ['open', 'active', 'en_route', 'arrived'])
+      .in('status', ['open', 'active', 'en_route', 'on_my_way', 'arrived', 'on-mission'])
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -44,7 +44,7 @@ export async function GET() {
         victim_report:victim_report_id(id, situation, urgency, status)
       `)
       .not('assigned_to_taskforce', 'is', null)
-      .in('status', ['open', 'active', 'en_route', 'arrived'])
+      .in('status', ['open', 'active', 'en_route', 'on_my_way', 'arrived', 'on-mission'])
       .order('created_at', { ascending: false });
 
     const filteredTfAssignments = [];
