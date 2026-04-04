@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-export type TableName = 'victim_report' | 'assignment' | 'volunteer' | 'message' | 'task_force' | 'task_force_member' | 'resource';
+export type TableName = 'victim_report' | 'assignment' | 'volunteer' | 'message' | 'task_force' | 'task_force_member' | 'resource' | 'resource_allocation';
 
 export interface RealtimeConfig<T> {
   table: TableName;

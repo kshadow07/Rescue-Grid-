@@ -113,7 +113,7 @@ async function fetchVolunteerChannels(supabase: ReturnType<typeof createServiceC
 
   const { data: allMessages, error: msgError } = await supabase
     .from("message")
-    .select("content, created_at, is_flagged_for_dma, read_at, receiver_id, sender_id")
+    .select("content, created_at, is_flagged_for_dma, read_at, receiver_id, sender_id, sender_type")
     .or(`receiver_id.in.(${volunteerIds.join(',')}),sender_id.in.(${volunteerIds.join(',')})`)
     .is("task_force_id", null)
     .is("victim_report_id", null)

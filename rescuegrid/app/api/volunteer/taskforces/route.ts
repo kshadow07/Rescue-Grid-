@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 
+interface TaskForce {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface TaskForceMember {
+  task_force_id: string;
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -19,11 +29,9 @@ export async function GET() {
     const session = JSON.parse(sessionCookie.value);
     const volunteerId = session.volunteer_id;
 
-    const { data: taskForces, error } = await supabase
+    const { data: memberships, error } = await supabase
       .from('task_force_member')
-      .select(`
-        task_force:task_force(id, name, status)
-      `)
+      .select('task_force_id')
       .eq('volunteer_id', volunteerId);
 
     if (error) {
@@ -31,14 +39,17 @@ export async function GET() {
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    const uniqueTfs = taskForces?.reduce((acc: any[], curr) => {
-      if (curr.task_force && !acc.find((t: any) => t.id === curr.task_force.id)) {
-        acc.push(curr.task_force);
-      }
-      return acc;
-    }, []) || [];
+    if (!memberships || memberships.length === 0) {
+      return NextResponse.json([]);
+    }
 
-    return NextResponse.json(uniqueTfs);
+    const taskForceIds = memberships.map((m: TaskForceMember) => m.task_force_id);
+    const { data: taskForces } = await supabase
+      .from('task_force')
+      .select('id, name, status')
+      .in('id', taskForceIds);
+
+    return NextResponse.json(taskForces || []);
   } catch (error) {
     console.error('Error in GET /api/volunteer/taskforces:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
