@@ -5,6 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import ChatScrollArea, { useChatScroll } from "@/components/ChatScrollArea";
+import StatusTimeline from "@/components/victim/StatusTimeline";
+import StatusBadge from "@/components/ui/StatusBadge";
 
 type Report = {
   id: string;
@@ -205,7 +207,7 @@ export default function ReportStatusPage() {
         <span className="font-mono text-[10px] text-orange uppercase tracking-wider">
           {formatReportId(report.id, report.created_at)}
         </span>
-        <StatusBadgeForReport status={report.status} />
+        <StatusBadge status={report.status} />
       </div>
       <div className="flex items-center gap-2">
         <span
@@ -283,6 +285,7 @@ export default function ReportStatusPage() {
       showJumpToBottom={true}
       className="min-h-screen"
     >
+      <StatusTimeline status={report.status} createdAt={report.created_at} />
       <div className="space-y-3 px-4 py-4">
         <p className="font-mono text-[10px] text-dim uppercase tracking-[0.15em] text-center mb-4">
           — Updates from Command —
@@ -386,27 +389,5 @@ function MessagesList({ reportId, isNearBottom, onMessageReceived }: { reportId:
         );
       })}
     </>
-  );
-}
-
-function StatusBadgeForReport({ status }: { status: string }) {
-  const configs: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-    open: { bg: "rgba(59,139,255,0.15)", text: "#3B8BFF", dot: "#3B8BFF", label: "OPEN" },
-    assigned: { bg: "rgba(255,107,43,0.12)", text: "#FF6B2B", dot: "#FF6B2B", label: "ASSIGNED" },
-    "in-progress": { bg: "rgba(245,166,35,0.15)", text: "#F5A623", dot: "#F5A623", label: "IN PROGRESS" },
-    resolved: { bg: "rgba(46,204,113,0.1)", text: "#2ECC71", dot: "#2ECC71", label: "RESOLVED" },
-  };
-  const cfg = configs[status] || configs.open;
-  return (
-    <span
-      className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider px-2 py-1"
-      style={{ backgroundColor: cfg.bg, color: cfg.text }}
-    >
-      <span
-        className={`w-1.5 h-1.5 rounded-full ${status === "open" ? "animate-pulse" : ""}`}
-        style={{ backgroundColor: cfg.dot }}
-      />
-      {cfg.label}
-    </span>
   );
 }

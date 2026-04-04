@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Button from "@/components/ui/Button";
+import StatusTimeline from "@/components/victim/StatusTimeline";
+import { VictimReport } from "@/hooks/useNeeds";
 
 interface ResourceAllocation {
   id: string;
@@ -35,8 +37,9 @@ interface MissionCounter {
 }
 
 interface RightSidebarProps {
-  selectedReport: { id: string; phone_no: string; situation: string; urgency: string; city: string; district: string; created_at: string; custom_message?: string } | null;
+  selectedReport: VictimReport | null;
   onCreateAssignment: (reportId: string) => void;
+  onResolveReport: (reportId: string) => void;
 }
 
 function timeAgo(timestamp: string | null): string {
@@ -55,11 +58,31 @@ function getResponderStatus(status: string): "on-mission" | "ready" | "standby" 
   return "standby";
 }
 
-export default function RightSidebar({ selectedReport, onCreateAssignment }: RightSidebarProps) {
+export default function RightSidebar({ selectedReport, onCreateAssignment, onResolveReport }: RightSidebarProps) {
   const [responders, setResponders] = useState<Responder[]>([]);
   const [counters, setCounters] = useState<MissionCounter>({ queue: 0, active: 0, duplicate: 0, done: 0 });
   const [loading, setLoading] = useState(true);
+  const [assignment, setAssignment] = useState<any>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    const fetchAssignment = async () => {
+      if (!selectedReport) {
+        setAssignment(null);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/dma/assignment/list?report_id=${selectedReport.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAssignment(Array.isArray(data) && data.length > 0 ? data[0] : null);
+        }
+      } catch {
+        setAssignment(null);
+      }
+    };
+    fetchAssignment();
+  }, [selectedReport]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -118,6 +141,21 @@ export default function RightSidebar({ selectedReport, onCreateAssignment }: Rig
           });
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'assignment',
+        },
+        (payload) => {
+           // Refresh counters and assignment if it matches selected report
+           fetchData();
+           if (selectedReport && (payload.new as any).victim_report_id === selectedReport.id) {
+             setAssignment(payload.eventType === 'DELETE' ? null : payload.new);
+           }
+        }
+      )
       .subscribe();
 
     return () => {
@@ -125,7 +163,7 @@ export default function RightSidebar({ selectedReport, onCreateAssignment }: Rig
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, []);
+  }, [selectedReport]);
 
   const sortedResponders = [...responders].sort((a, b) => {
     const order = { "on-mission": 0, ready: 1, standby: 2 };
@@ -135,31 +173,32 @@ export default function RightSidebar({ selectedReport, onCreateAssignment }: Rig
   });
 
   return (
-    <aside className="w-[320px] shrink-0 bg-surface-1 border-l border-border-dim overflow-y-auto">
-      <div className="p-4 space-y-6">
+    <aside className="w-[340px] shrink-0 bg-surface-1 border-l border-border-dim overflow-y-auto custom-scrollbar">
+      <div className="p-5 space-y-8">
+        {/* Mission Control Header */}
         <section>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-orange">⚡</span>
-            <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-ink">
-              MISSION CONTROL
-            </h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-orange animate-pulse" />
+              <h2 className="font-display text-[14px] font-black uppercase tracking-widest text-ink">
+                MISSION CONTROL
+              </h2>
+            </div>
+            <div className="font-mono text-[10px] text-orange font-bold">LIVE</div>
           </div>
-          <p className="font-mono text-[10px] text-dim uppercase tracking-wider mb-3">
-            {counters.active} ACTIVE REPORTS
-          </p>
 
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             {[
-              { key: "queue", label: "QUEUE" },
-              { key: "active", label: "ACTIVE" },
-              { key: "duplicate", label: "DUPLICATE" },
-              { key: "done", label: "DONE" },
+              { key: "queue", label: "QUEUE", color: "text-alert", bg: "bg-alert/5" },
+              { key: "active", label: "ACTIVE", color: "text-orange", bg: "bg-orange/5" },
+              { key: "duplicate", label: "DUPE", color: "text-dim", bg: "bg-surface-3" },
+              { key: "done", label: "DONE", color: "text-ops", bg: "bg-ops/5" },
             ].map((item) => (
-              <div key={item.key} className="text-center">
-                <div className="font-display text-[24px] font-bold text-ink">
+              <div key={item.key} className={`${item.bg} border border-border-dim p-3 rounded-sm`}>
+                <div className={`font-display text-[28px] font-black ${item.color} leading-none mb-1`}>
                   {counters[item.key as keyof MissionCounter]}
                 </div>
-                <div className="font-mono text-[10px] text-dim uppercase tracking-wider">
+                <div className="font-mono text-[9px] text-dim uppercase tracking-[0.2em]">
                   {item.label}
                 </div>
               </div>
@@ -167,64 +206,132 @@ export default function RightSidebar({ selectedReport, onCreateAssignment }: Rig
           </div>
         </section>
 
-        {selectedReport && (
-          <section>
-            <div className="flex items-center gap-2 mb-2">
+        {selectedReport ? (
+          <section className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="flex items-center gap-2 mb-3">
               <span className="text-alert">🆘</span>
               <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-ink">
-                SELECTED REPORT
+                ACTIVE FOCUS
               </h2>
             </div>
-            <div className="bg-surface-2 border-l-[3px] border-alert p-3 space-y-2">
-              <div className="font-mono text-[10px] text-dim uppercase tracking-wider">
-                {selectedReport.situation.toUpperCase()} · {selectedReport.urgency.toUpperCase()}
-              </div>
-              <div className="font-body text-[13px] text-ink">
-                📍 {selectedReport.city}, {selectedReport.district}
-              </div>
-              <div className="font-mono text-[10px] text-dim">
-                {selectedReport.phone_no}
-              </div>
-              {selectedReport.custom_message && (
-                <div className="mt-2 p-2 bg-surface-3 border-l-2 border-orange/30">
-                  <div className="font-mono text-[9px] text-dim uppercase tracking-wider mb-1">MESSAGE</div>
-                  <div className="font-body text-[12px] text-ink/80 italic">
-                    "{selectedReport.custom_message}"
+            
+            <div className="bg-surface-2 border border-border-dim rounded-sm overflow-hidden shadow-lg shadow-black/20">
+              <div className="p-4 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="font-mono text-[10px] text-alert font-bold uppercase tracking-wider">
+                      {selectedReport.urgency} PRIORITY
+                    </div>
+                    <h3 className="font-display text-[16px] font-bold text-ink leading-tight">
+                      {selectedReport.situation}
+                    </h3>
+                  </div>
+                  <StatusBadge status={selectedReport.status} />
+                </div>
+
+                <div className="space-y-3 py-4 border-y border-border-dim/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-ink/70">
+                      <span className="text-[12px]">📍</span>
+                      <span className="font-body text-[13px]">{selectedReport.city}, {selectedReport.district}</span>
+                    </div>
+                    <div className="px-2 py-0.5 bg-surface-3 rounded-full flex items-center gap-1.5 border border-border-dim">
+                      <span className="text-[10px]">☀️</span>
+                      <span className="font-mono text-[10px] text-dim">28°C · CLEAR</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-ink/70">
+                    <span className="text-[12px]">📞</span>
+                    <span className="font-mono text-[12px]">{selectedReport.phone_no}</span>
                   </div>
                 </div>
-              )}
-              <div className="flex items-center gap-2 mt-2">
-                <Button
-                  size="small"
-                  variant="primary"
-                  onClick={() => onCreateAssignment(selectedReport.id)}
-                >
-                  ASSIGN →
-                </Button>
-                <a
-                  href={`tel:${selectedReport.phone_no}`}
-                  className="font-mono text-[10px] text-dim uppercase tracking-wider hover:text-orange transition-colors"
-                >
-                  📞 CALL
-                </a>
+
+                {selectedReport.custom_message && (
+                  <div className="bg-surface-3 p-3 border-l-2 border-orange/50 italic">
+                    <p className="font-body text-[12px] text-ink/80 leading-relaxed">
+                      "{selectedReport.custom_message}"
+                    </p>
+                  </div>
+                )}
+
+                {/* Real-time Timeline inside Sidebar */}
+                <div className="pt-2">
+                  <div className="font-mono text-[9px] text-dim uppercase tracking-widest mb-4 text-center">MISSION PROGRESS</div>
+                  <div className="scale-[0.85] origin-top -mx-4">
+                    <StatusTimeline status={selectedReport.status} createdAt={selectedReport.created_at} />
+                  </div>
+                </div>
+                
+                {assignment && (
+                  <div className="mt-4 p-3 bg-ops/5 border border-ops/20 rounded-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-mono text-[10px] text-ops font-bold uppercase tracking-widest">ASSIGNED UNIT</div>
+                      <StatusBadge status={assignment.status} />
+                    </div>
+                    <div className="font-display text-[14px] font-bold text-ink mb-1">
+                      {assignment.task}
+                    </div>
+                    <div className="font-mono text-[10px] text-dim">
+                      ID: {assignment.id.slice(0, 8)}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  {!assignment ? (
+                    <Button
+                      variant="primary"
+                      className="flex-1 py-3"
+                      onClick={() => onCreateAssignment(selectedReport.id)}
+                    >
+                      DEPLOY UNIT →
+                    </Button>
+                  ) : selectedReport.status !== 'resolved' && (
+                    <Button
+                      variant="primary"
+                      className="flex-1 py-3 bg-ops text-black hover:bg-ops/90 border-none shadow-[0_0_15px_rgba(46,204,113,0.3)]"
+                      onClick={() => onResolveReport(selectedReport.id)}
+                    >
+                      RESOLVE & REMOVE ✓
+                    </Button>
+                  )}
+                  <a
+                    href={`tel:${selectedReport.phone_no}`}
+                    className="flex items-center justify-center px-4 border border-border-dim hover:bg-surface-3 transition-colors rounded-sm"
+                  >
+                    📞
+                  </a>
+                </div>
               </div>
             </div>
+          </section>
+        ) : (
+          <section className="py-12 text-center border-2 border-dashed border-border-dim rounded-lg">
+            <div className="text-[24px] mb-2 opacity-30">🎯</div>
+            <p className="font-mono text-[10px] text-dim uppercase tracking-widest px-8">
+              Select a report from the map to view details & assign units
+            </p>
           </section>
         )}
 
         <section>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-ink">👥</span>
-            <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-ink">
-              LIVE RESPONDERS ({responders.length})
-            </h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-ink text-[14px]">📡</span>
+              <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-ink">
+                LIVE RESPONDERS
+              </h2>
+            </div>
+            <span className="bg-surface-3 px-2 py-0.5 font-mono text-[10px] text-dim rounded-full">
+              {responders.length}
+            </span>
           </div>
 
           {loading ? (
-            <div className="text-center py-4">
-              <span className="font-mono text-[10px] text-dim uppercase tracking-wider">
-                LOADING...
-              </span>
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-surface-2 animate-pulse rounded-sm" />
+              ))}
             </div>
           ) : (
             <div className="space-y-3">
@@ -234,30 +341,35 @@ export default function RightSidebar({ selectedReport, onCreateAssignment }: Rig
                 return (
                   <div
                     key={r.id}
-                    className="flex items-start gap-3 p-2 bg-surface-2 border border-border-dim"
+                    className="group flex items-start gap-3 p-3 bg-surface-2 border border-border-dim hover:border-orange/50 transition-all duration-300 rounded-sm relative overflow-hidden"
                   >
-                    <div className="w-8 h-8 bg-surface-4 border border-border-dim flex items-center justify-center font-display text-[14px] font-bold text-ink uppercase shrink-0">
+                    {r.status === 'on-mission' && (
+                      <div className="absolute top-0 left-0 w-1 h-full bg-orange" />
+                    )}
+                    <div className="w-10 h-10 bg-surface-3 border border-border-dim flex items-center justify-center font-display text-[16px] font-black text-ink uppercase shrink-0 group-hover:bg-surface-4 transition-colors">
                       {r.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="font-display text-[14px] font-semibold text-ink truncate">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-display text-[13px] font-bold text-ink truncate pr-2">
                           {r.name}
                         </span>
                         <StatusBadge status={badgeStatus} />
                       </div>
-                      <div className="font-mono text-[10px] text-dim uppercase tracking-wider">
-                        {r.type} · {r.skills?.split(",")[0] || "General"}
+                      <div className="font-mono text-[9px] text-dim uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="w-1 h-1 rounded-full bg-dim/50" />
+                        {r.type}
                       </div>
-                      <div className="font-mono text-[10px] text-dim mt-0.5">
-                        last seen: {timeAgo(r.last_seen)}
+                      <div className="font-mono text-[9px] text-dim/60 mt-1">
+                        {timeAgo(r.last_seen)}
                       </div>
+                      
                       {allocations.length > 0 && (
-                        <div className="mt-1.5 space-y-1">
+                        <div className="mt-2 flex flex-wrap gap-1">
                           {allocations.map((alloc) => (
-                            <div key={alloc.id} className="px-2 py-1 bg-ops/10 border border-ops/20">
-                              <span className="font-mono text-[9px] text-ops uppercase">
-                                📦 {alloc.quantity_allocated} {alloc.resource.unit} {alloc.resource.name}
+                            <div key={alloc.id} className="px-1.5 py-0.5 bg-ops/5 border border-ops/10 rounded-xs">
+                              <span className="font-mono text-[8px] text-ops uppercase">
+                                {alloc.quantity_allocated}{alloc.resource.unit} {alloc.resource.name}
                               </span>
                             </div>
                           ))}

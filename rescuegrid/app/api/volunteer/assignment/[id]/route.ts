@@ -64,7 +64,8 @@ export async function PATCH(
     if (assignment.victim_report_id) {
       let victimStatus = 'assigned';
       if (status === 'completed') victimStatus = 'resolved';
-      else if (status === 'on_my_way' || status === 'arrived') victimStatus = 'in-progress';
+      else if (status === 'on_my_way') victimStatus = 'en_route';
+      else if (status === 'arrived') victimStatus = 'arrived';
       
       await supabase
         .from('victim_report')

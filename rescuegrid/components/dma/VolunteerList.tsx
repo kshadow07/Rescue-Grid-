@@ -1,21 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-
-interface Volunteer {
-  id: string;
-  name: string;
-  mobile_no?: string;
-  latitude: number;
-  longitude: number;
-  status: string;
-  type: string;
-  skills?: string;
-  equipment?: string;
-  last_seen?: string;
-}
+import { useVolunteers, Volunteer } from "@/hooks/useVolunteers";
 
 function getStatusColor(status: string): string {
   switch (status) {
@@ -49,7 +35,7 @@ function getStatusLabel(status: string): string {
   }
 }
 
-function formatLastSeen(lastSeen?: string): string {
+function formatLastSeen(lastSeen: string | null | undefined): string {
   if (!lastSeen) return "Unknown";
   const date = new Date(lastSeen);
   const now = new Date();
@@ -64,72 +50,14 @@ function formatLastSeen(lastSeen?: string): string {
 }
 
 export default function VolunteerList() {
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { volunteers, loading } = useVolunteers();
   const [expandedVolunteer, setExpandedVolunteer] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Initial fetch
-    const fetchVolunteers = async () => {
-      try {
-        const res = await fetch("/api/volunteer/locations");
-        if (res.ok) {
-          const data = await res.json();
-          setVolunteers(Array.isArray(data) ? data : []);
-        }
-      } catch (error) {
-        console.error("Error fetching volunteers:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchVolunteers();
-
-    // Subscribe to real-time updates
-    const supabase = createClient();
-    const channel: RealtimeChannel = supabase
-      .channel('sidebar-volunteer-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'volunteer',
-        },
-        (payload) => {
-          setVolunteers((current) => {
-            if (payload.eventType === 'UPDATE') {
-              const updated = payload.new as Volunteer;
-              return current.map((v) =>
-                v.id === updated.id ? { ...v, ...updated } : v
-              );
-            } else if (payload.eventType === 'INSERT') {
-              const newVol = payload.new as Volunteer;
-              if (newVol.latitude && newVol.longitude) {
-                return [...current, newVol];
-              }
-              return current;
-            } else if (payload.eventType === 'DELETE') {
-              return current.filter((v) => v.id !== payload.old.id);
-            }
-            return current;
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  if (loading) {
+  if (loading && volunteers.length === 0) {
     return (
-      <div className="p-4">
-        <div className="font-mono text-[10px] text-dim uppercase tracking-wider">
-          Loading responders...
-        </div>
+      <div className="text-center py-8">
+        <div className="w-6 h-6 border-2 border-orange border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+        <p className="font-mono text-[9px] text-dim uppercase tracking-widest">Tracking Responders...</p>
       </div>
     );
   }
