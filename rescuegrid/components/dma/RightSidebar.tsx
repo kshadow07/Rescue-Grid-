@@ -60,6 +60,7 @@ function getResponderStatus(status: string): "on-mission" | "ready" | "standby" 
 
 export default function RightSidebar({ selectedReport, onCreateAssignment, onResolveReport }: RightSidebarProps) {
   const [responders, setResponders] = useState<Responder[]>([]);
+  const [activeMissions, setActiveMissions] = useState<any[]>([]);
   const [counters, setCounters] = useState<MissionCounter>({ queue: 0, active: 0, duplicate: 0, done: 0 });
   const [loading, setLoading] = useState(true);
   const [assignment, setAssignment] = useState<any>(null);
@@ -87,9 +88,10 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [volRes, assignRes] = await Promise.all([
+        const [volRes, assignRes, activeRes] = await Promise.all([
           fetch("/api/volunteer/list"),
           fetch("/api/dma/assignment/counts"),
+          fetch("/api/dma/assignment/list"),
         ]);
 
         if (volRes.ok) {
@@ -99,6 +101,10 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
         if (assignRes.ok) {
           const assignData = await assignRes.json();
           setCounters(assignData);
+        }
+        if (activeRes.ok) {
+          const activeData = await activeRes.json();
+          setActiveMissions(activeData.filter((a: any) => a.status !== 'completed' && a.status !== 'failed'));
         }
       } catch {
         // silent fail
@@ -271,6 +277,11 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
                     <div className="font-display text-[14px] font-bold text-ink mb-1">
                       {assignment.task}
                     </div>
+                    {(assignment.volunteer_name || assignment.taskforce_name) && (
+                      <div className="font-mono text-[10px] text-orange uppercase font-bold mt-1 mb-1">
+                        BY: {assignment.volunteer_name || assignment.taskforce_name}
+                      </div>
+                    )}
                     <div className="font-mono text-[10px] text-dim">
                       ID: {assignment.id.slice(0, 8)}
                     </div>
@@ -313,6 +324,65 @@ export default function RightSidebar({ selectedReport, onCreateAssignment, onRes
             </p>
           </section>
         )}
+
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-orange text-[14px]">⚡</span>
+              <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-ink">
+                ACTIVE MISSIONS
+              </h2>
+            </div>
+            {loading ? (
+              <div className="w-8 h-4 bg-orange/20 animate-pulse rounded-full" />
+            ) : (
+              <span className="bg-orange/10 px-2 py-0.5 font-mono text-[10px] text-orange rounded-full border border-orange/20">
+                {activeMissions.length}
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {loading ? (
+              [1, 2].map((i) => (
+                <div key={i} className="h-24 bg-surface-2 border border-border-dim animate-pulse rounded-sm" />
+              ))
+            ) : activeMissions.length === 0 ? (
+              <div className="py-6 text-center border border-dashed border-border-dim rounded-sm">
+                <p className="font-mono text-[9px] text-dim uppercase tracking-widest">
+                  No active missions
+                </p>
+              </div>
+            ) : (
+              activeMissions.map((mission) => (
+                <div
+                  key={mission.id}
+                  className="bg-surface-2 border border-border-dim p-3 rounded-sm space-y-2 hover:border-orange/30 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-mono text-[10px] text-orange font-bold uppercase tracking-widest">
+                      {mission.status}
+                    </div>
+                    <div className="font-mono text-[9px] text-dim">
+                      {timeAgo(mission.created_at)}
+                    </div>
+                  </div>
+                  <div className="font-display text-[13px] font-bold text-ink leading-snug">
+                    {mission.task}
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-border-dim/50">
+                    <div className="font-mono text-[9px] text-dim uppercase">
+                      TO: {mission.volunteer_name || mission.taskforce_name || "Unassigned"}
+                    </div>
+                    <div className="font-mono text-[9px] text-dim/50">
+                      ID: {mission.id.slice(0, 6)}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
         <section>
           <div className="flex items-center justify-between mb-4">

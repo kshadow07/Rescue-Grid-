@@ -31,6 +31,7 @@ export default function Topbar({ loginTime }: TopbarProps) {
   const supabase = createClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const [counters, setCounters] = useState<LiveCounters>({ critical: 0, active: 0, vols: 0 });
+  const [loading, setLoading] = useState(true);
   const [sessionElapsed, setSessionElapsed] = useState("00:00:00");
 
   const fetchCounters = useCallback(async () => {
@@ -40,7 +41,10 @@ export default function Topbar({ loginTime }: TopbarProps) {
         const data = await res.json();
         setCounters(data);
       }
-    } catch {}
+    } catch {
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -146,18 +150,30 @@ export default function Topbar({ loginTime }: TopbarProps) {
 
       <div className="flex-1" />
 
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.1em]">
+      <div className="flex items-center gap-5 shrink-0">
+        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em]">
           <span className="text-dim">CRITICAL</span>
-          <span className="text-[14px] font-bold text-alert">{counters.critical}</span>
+          {loading ? (
+            <div className="w-4 h-4 bg-alert/20 animate-pulse rounded-sm" />
+          ) : (
+            <span className="text-[14px] font-bold text-alert">{counters.critical}</span>
+          )}
         </div>
-        <div className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.1em]">
+        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em]">
           <span className="text-dim">ACTIVE</span>
-          <span className="text-[14px] font-bold text-orange">{counters.active}</span>
+          {loading ? (
+            <div className="w-4 h-4 bg-orange/20 animate-pulse rounded-sm" />
+          ) : (
+            <span className="text-[14px] font-bold text-orange">{counters.active}</span>
+          )}
         </div>
-        <div className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.1em]">
+        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em]">
           <span className="text-dim">VOLS</span>
-          <span className="text-[14px] font-bold text-ink">{counters.vols}</span>
+          {loading ? (
+            <div className="w-4 h-4 bg-white/10 animate-pulse rounded-sm" />
+          ) : (
+            <span className="text-[14px] font-bold text-ink">{counters.vols}</span>
+          )}
         </div>
 
         <div className="h-4 w-px bg-border-dim mx-1" />

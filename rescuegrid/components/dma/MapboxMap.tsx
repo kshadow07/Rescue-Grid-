@@ -491,7 +491,12 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
     }
     
     if (hasPoints && !bounds.isEmpty()) {
-      mapRef.current.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: { top: 100, bottom: 100, left: 340, right: 100 }, maxZoom: 14, duration: 1000, essential: true });
+      mapRef.current.fitBounds(bounds.toArray() as [[number, number], [number, number]], { 
+        padding: { top: 60, bottom: 60, left: 60, right: 60 }, 
+        maxZoom: 14, 
+        duration: 1000, 
+        essential: true 
+      });
     }
   }, []);
   

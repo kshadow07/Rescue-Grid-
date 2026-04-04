@@ -176,7 +176,7 @@ function DashboardContent() {
     <div className="h-screen w-screen flex flex-col bg-void overflow-hidden">
       <Topbar loginTime={loginTime} />
 
-      <div className="flex flex-1 pt-[52px]">
+      <div className="flex flex-1 mt-[52px] overflow-hidden">
         <LeftSidebar
           filters={filters}
           onFiltersChange={handleFiltersChange}
