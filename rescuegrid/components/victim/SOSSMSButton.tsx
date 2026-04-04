@@ -19,6 +19,7 @@ interface LocationData {
 
 export function useSOSSMS() {
   const [isLoading, setIsLoading] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const getLocation = useCallback((): Promise<LocationData> => {
@@ -28,34 +29,68 @@ export function useSOSSMS() {
         return;
       }
 
-      const tryGetPosition = (highAccuracy: boolean) => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
+      let bestPosition: GeolocationPosition | null = null;
+      let watchId: number | null = null;
+      const GPS_TIMEOUT = 25000; // 25 seconds max wait
+      const MIN_ACCURACY = 100; // Try to get at least 100m accuracy
+
+      setGpsStatus("Searching for GPS satellites...");
+
+      // Timeout - use best position we got
+      const timeoutId = setTimeout(() => {
+        if (watchId !== null) {
+          navigator.geolocation.clearWatch(watchId);
+        }
+        if (bestPosition) {
+          console.log(`Using best accuracy: ${bestPosition.coords.accuracy}m`);
+          resolve({
+            latitude: bestPosition.coords.latitude,
+            longitude: bestPosition.coords.longitude,
+            accuracy: bestPosition.coords.accuracy,
+          });
+        } else {
+          reject(new Error("GPS timeout"));
+        }
+      }, GPS_TIMEOUT);
+
+      // Use watchPosition to keep GPS radio warm and wait for better accuracy
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const acc = pos.coords.accuracy;
+          console.log(`GPS update: ${acc}m accuracy`);
+
+          // Keep track of best position
+          if (!bestPosition || acc < bestPosition.coords.accuracy) {
+            bestPosition = pos;
+            setGpsStatus(`Accuracy: ${Math.round(acc)}m${acc <= MIN_ACCURACY ? " ✓" : " (improving...)"}`);
+          }
+
+          // If we got good accuracy, stop and use it immediately
+          if (acc <= MIN_ACCURACY) {
+            if (watchId !== null) {
+              navigator.geolocation.clearWatch(watchId);
+            }
+            clearTimeout(timeoutId);
             resolve({
               latitude: pos.coords.latitude,
               longitude: pos.coords.longitude,
               accuracy: pos.coords.accuracy,
             });
-          },
-          (err) => {
-            // If high accuracy fails (timeout or unavailable), try low accuracy
-            if (highAccuracy && (err.code === 3 || err.code === 2)) {
-              console.log("High accuracy failed, trying low accuracy...");
-              tryGetPosition(false);
-              return;
-            }
-            reject(err);
-          },
-          { 
-            enableHighAccuracy: highAccuracy, 
-            timeout: highAccuracy ? 15000 : 10000,
-            maximumAge: 60000 
           }
-        );
-      };
-
-      // Try high accuracy first, fallback to low accuracy
-      tryGetPosition(true);
+        },
+        (err) => {
+          if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+          }
+          clearTimeout(timeoutId);
+          reject(err);
+        },
+        {
+          enableHighAccuracy: true,  // Force GPS hardware
+          timeout: 10000,
+          maximumAge: 0,  // No cached positions
+        }
+      );
     });
   }, []);
 
@@ -82,13 +117,22 @@ Msg: ${customMessage || "None"}`;
 
         setTimeout(() => {
           setIsLoading(false);
+          setGpsStatus(null);
         }, 1000);
       } catch (err) {
         setIsLoading(false);
-        const errorMessage =
-          err instanceof GeolocationPositionError
-            ? "Location access denied. Please enable location services."
-            : "Failed to get location. Please try again.";
+        setGpsStatus(null);
+        let errorMessage = "Failed to get location. Please try again.";
+        
+        if (err instanceof GeolocationPositionError) {
+          if (err.code === 1) {
+            errorMessage = "Permission denied. Please allow location access.";
+          } else if (err.code === 2) {
+            errorMessage = "GPS unavailable. Please enable location services and ensure clear sky view.";
+          } else if (err.code === 3) {
+            errorMessage = "GPS timeout. Try moving to an open area with clear sky view.";
+          }
+        }
         setError(errorMessage);
       }
     },
@@ -98,9 +142,15 @@ Msg: ${customMessage || "None"}`;
   return {
     openSMSApp,
     isLoading,
+    gpsStatus,
     error,
     clearError: () => setError(null),
   };
+}
+
+export function useGPSStatus() {
+  const [status, setStatus] = useState<string | null>(null);
+  return { status, setStatus };
 }
 
 export default function SOSSMSButton({
@@ -110,7 +160,7 @@ export default function SOSSMSButton({
 }: SOSSMSButtonProps) {
   const [showModal, setShowModal] = useState(false);
   const [phone, setPhone] = useState(phoneNumber || "");
-  const { openSMSApp, isLoading, error } = useSOSSMS();
+  const { openSMSApp, isLoading, gpsStatus, error } = useSOSSMS();
 
   const handleOpenSMS = () => {
     if (!phone.trim()) {
@@ -158,7 +208,7 @@ export default function SOSSMSButton({
             >
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
-            Getting Location...
+            {gpsStatus || "Getting Location..."}
           </>
         ) : (
           <>

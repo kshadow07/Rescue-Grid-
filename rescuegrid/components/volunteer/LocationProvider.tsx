@@ -8,6 +8,7 @@ interface LocationContextType {
   accuracy: number | null;
   permission: 'granted' | 'denied' | 'prompt' | null;
   error: string | null;
+  gpsStatus: 'searching' | 'acquired' | 'poor' | null;
   requestPermission: () => Promise<void>;
   isTracking: boolean;
 }
@@ -16,11 +17,14 @@ const LocationContext = createContext<LocationContextType | undefined>(undefined
 
 const UI_UPDATE_INTERVAL = 5000;
 const DB_SYNC_THROTTLE = 30000;
+const MIN_ACCEPTABLE_ACCURACY = 100; // meters - wait until we get at least this accuracy
+const GPS_TIMEOUT = 30000; // 30 seconds max wait for GPS
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
   const positionRef = useRef<{ lat: number; lng: number; accuracy: number; timestamp: number } | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const uiIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const gpsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastDbSyncRef = useRef<number>(0);
   const hasInitializedRef = useRef(false);
 
@@ -28,6 +32,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   const [longitude, setLongitude] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [permission, setPermission] = useState<'granted' | 'denied' | 'prompt' | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<'searching' | 'acquired' | 'poor' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isTracking, setIsTracking] = useState(false);
 
@@ -61,10 +66,14 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       clearInterval(uiIntervalRef.current);
       uiIntervalRef.current = null;
     }
+    if (gpsTimeoutRef.current) {
+      clearTimeout(gpsTimeoutRef.current);
+      gpsTimeoutRef.current = null;
+    }
     setIsTracking(false);
   }, []);
 
-  const startTracking = useCallback(() => {
+  const startContinuousTracking = useCallback(() => {
     if (!navigator.geolocation || watchIdRef.current !== null) return;
 
     setIsTracking(true);
@@ -86,7 +95,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 5000,
+        maximumAge: 0, // Don't use cached positions
       }
     );
 
@@ -101,122 +110,125 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     }, UI_UPDATE_INTERVAL);
   }, [sendLocationUpdate, stopTracking]);
 
-  const requestPermission = useCallback(async () => {
+  // Get initial high-accuracy position using watchPosition
+  const getInitialPosition = useCallback((onSuccess: () => void) => {
     if (!navigator.geolocation) {
       setError('Geolocation not supported');
       setPermission('denied');
       return;
     }
 
-    const tryGetPosition = (highAccuracy: boolean) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
+    setGpsStatus('searching');
+    let bestPosition: GeolocationPosition | null = null;
+
+    // Set timeout - if we don't get good accuracy in time, use best we have
+    gpsTimeoutRef.current = setTimeout(() => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      
+      if (bestPosition) {
+        const lat = bestPosition.coords.latitude;
+        const lng = bestPosition.coords.longitude;
+        const acc = bestPosition.coords.accuracy;
+        
+        positionRef.current = { lat, lng, accuracy: acc, timestamp: Date.now() };
+        setLatitude(lat);
+        setLongitude(lng);
+        setAccuracy(acc);
+        setPermission('granted');
+        setGpsStatus(acc <= MIN_ACCEPTABLE_ACCURACY ? 'acquired' : 'poor');
+        onSuccess();
+      } else {
+        setGpsStatus(null);
+        setError('Could not get location. Please check GPS settings.');
+      }
+    }, GPS_TIMEOUT);
+
+    // Start watching for position
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        const acc = position.coords.accuracy;
+        console.log(`GPS Update: accuracy=${acc}m`);
+
+        // Keep track of best position
+        if (!bestPosition || acc < bestPosition.coords.accuracy) {
+          bestPosition = position;
+        }
+
+        // If we got good accuracy, stop watching and proceed
+        if (acc <= MIN_ACCEPTABLE_ACCURACY) {
+          if (watchIdRef.current !== null) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+            watchIdRef.current = null;
+          }
+          if (gpsTimeoutRef.current) {
+            clearTimeout(gpsTimeoutRef.current);
+            gpsTimeoutRef.current = null;
+          }
+
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
-          const acc = position.coords.accuracy;
-
+          
           positionRef.current = { lat, lng, accuracy: acc, timestamp: Date.now() };
           setLatitude(lat);
           setLongitude(lng);
           setAccuracy(acc);
           setPermission('granted');
+          setGpsStatus('acquired');
           setError(null);
-          sendLocationUpdate(lat, lng, acc);
-          startTracking();
-        },
-        (err) => {
-          // If high accuracy timeout/unavailable, try low accuracy
-          if (highAccuracy && (err.code === 3 || err.code === 2)) {
-            console.log('High accuracy failed, trying low accuracy...');
-            tryGetPosition(false);
-            return;
-          }
-          if (err.code === 1) {
-            setPermission('denied');
-            setError('Permission denied. Please enable location access in browser settings.');
-          } else {
-            setPermission('prompt');
-            setError(err.code === 3 ? 'Location request timed out. Try again.' : 'Location services unavailable.');
-          }
-        },
-        {
-          enableHighAccuracy: highAccuracy,
-          timeout: highAccuracy ? 15000 : 10000,
-          maximumAge: 60000,
+          onSuccess();
         }
-      );
-    };
+      },
+      (err) => {
+        if (watchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+        if (gpsTimeoutRef.current) {
+          clearTimeout(gpsTimeoutRef.current);
+          gpsTimeoutRef.current = null;
+        }
 
-    // Try high accuracy first, fallback to low accuracy
-    tryGetPosition(true);
-  }, [sendLocationUpdate, startTracking]);
+        if (err.code === 1) {
+          setPermission('denied');
+          setGpsStatus(null);
+          setError('Permission denied. Please enable location access in browser settings.');
+        } else if (err.code === 2) {
+          setGpsStatus(null);
+          setError('GPS unavailable. Please enable location services.');
+        } else {
+          setGpsStatus(null);
+          setError('Location request timed out. Try again.');
+        }
+      },
+      {
+        enableHighAccuracy: true,  // Force GPS hardware
+        timeout: 10000,
+        maximumAge: 0,  // No cached positions
+      }
+    );
+  }, []);
+
+  const requestPermission = useCallback(async () => {
+    getInitialPosition(() => {
+      startContinuousTracking();
+    });
+  }, [getInitialPosition, startContinuousTracking]);
 
   useEffect(() => {
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
 
-    if (!navigator.geolocation) {
-      setPermission('denied');
-      return;
-    }
-
-    const tryGetPosition = (highAccuracy: boolean) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          const acc = position.coords.accuracy;
-          positionRef.current = { lat, lng, accuracy: acc, timestamp: Date.now() };
-          setLatitude(lat);
-          setLongitude(lng);
-          setAccuracy(acc);
-          setPermission('granted');
-          startTracking();
-        },
-        (err) => {
-          // If high accuracy timeout/unavailable, try low accuracy
-          if (highAccuracy && (err.code === 3 || err.code === 2)) {
-            console.log('High accuracy failed on init, trying low accuracy...');
-            tryGetPosition(false);
-            return;
-          }
-          if (err.code === 1) {
-            setPermission('denied');
-          } else {
-            setPermission('prompt');
-          }
-        },
-        {
-          enableHighAccuracy: highAccuracy,
-          timeout: highAccuracy ? 15000 : 10000,
-          maximumAge: 60000,
-        }
-      );
-    };
-
-    // Try high accuracy first, fallback to low accuracy
-    tryGetPosition(true);
+    getInitialPosition(() => {
+      startContinuousTracking();
+    });
 
     return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-      if (uiIntervalRef.current) {
-        clearInterval(uiIntervalRef.current);
-      }
+      stopTracking();
     };
-  }, [startTracking]);
-
-  useEffect(() => {
-    return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-      if (uiIntervalRef.current) {
-        clearInterval(uiIntervalRef.current);
-      }
-    };
-  }, []);
+  }, [getInitialPosition, startContinuousTracking, stopTracking]);
 
   return (
     <LocationContext.Provider
@@ -226,6 +238,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         accuracy,
         permission,
         error,
+        gpsStatus,
         requestPermission,
         isTracking,
       }}
