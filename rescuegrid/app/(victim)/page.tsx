@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import SOSSMSButton from "@/components/victim/SOSSMSButton";
 
 type Situation = {
   type: "food" | "water" | "medical" | "rescue" | "shelter" | "missing";
@@ -21,6 +23,7 @@ const situations: Situation[] = [
 
 export default function VictimHomePage() {
   const router = useRouter();
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
 
   return (
     <div className="min-h-screen bg-void flex flex-col">
@@ -42,11 +45,29 @@ export default function VictimHomePage() {
 
           <div className="text-center mb-4">
             <span className="inline-block bg-alert text-white font-mono text-[10px] uppercase tracking-[0.15em] px-2 py-0.5">
-              SOS
+              🚨 SOS - Works Without Internet
             </span>
           </div>
 
-          <p className="text-center font-display text-lg font-semibold text-ink mb-6 tracking-wide">
+          {!isOnline && (
+            <div className="mb-4 p-2 bg-surface-2 border border-orange/30 text-center">
+              <p className="font-mono text-[10px] text-orange">
+                📡 Offline Mode - Use SOS button below to send emergency SMS
+              </p>
+            </div>
+          )}
+
+          <SOSSMSButton situationType="rescue" />
+
+          <div className="mt-6 mb-4">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-px bg-border-dim" />
+              <span className="font-mono text-[10px] text-dim uppercase tracking-wider">or select type</span>
+              <div className="flex-1 h-px bg-border-dim" />
+            </div>
+          </div>
+
+          <p className="text-center font-display text-lg font-semibold text-ink mb-4 tracking-wide">
             What do you need?
           </p>
 
