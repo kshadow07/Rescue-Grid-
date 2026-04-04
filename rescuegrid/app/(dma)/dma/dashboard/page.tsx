@@ -37,6 +37,7 @@ function DashboardContent() {
   const [layers, setLayers] = useState({
     needPins: true,
     volunteers: true,
+    taskForceRoutes: true,
     reliefCamps: false,
     hospitals: false,
   });

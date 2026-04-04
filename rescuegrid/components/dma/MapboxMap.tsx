@@ -263,8 +263,8 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
           }
         }
 
-        // Handle task force assignment - draw routes from all TF members
-        if (a.assigned_to_taskforce) {
+        // Handle task force assignment - draw routes from all TF members (if layer enabled)
+        if (a.assigned_to_taskforce && layers.taskForceRoutes) {
           const tfMembers = taskForceMembers.filter(m => m.task_force_id === a.assigned_to_taskforce);
           tfMembers.forEach(member => {
             features.push({
@@ -520,13 +520,15 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
       }
     });
 
-    // Include task force member locations in bounds
-    taskForceMembersRef.current.forEach((member) => {
-      if (member.latitude && member.longitude) {
-        bounds.extend([member.longitude, member.latitude]);
-        hasPoints = true;
-      }
-    });
+    // Include task force member locations in bounds only if layer is enabled
+    if (layers.taskForceRoutes) {
+      taskForceMembersRef.current.forEach((member) => {
+        if (member.latitude && member.longitude) {
+          bounds.extend([member.longitude, member.latitude]);
+          hasPoints = true;
+        }
+      });
+    }
     
     if (routeGeometryRef.current?.coordinates) {
       routeGeometryRef.current.coordinates.forEach((coord: number[]) => {
@@ -543,7 +545,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
         essential: true 
       });
     }
-  }, []);
+  }, [layers.taskForceRoutes]);
   
   fitBoundsToDataRef.current = fitBoundsToData;
 
