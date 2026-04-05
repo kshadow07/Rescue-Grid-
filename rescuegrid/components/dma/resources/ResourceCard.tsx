@@ -22,9 +22,10 @@ interface ResourceCardProps {
   onEdit: (id: string) => void;
   onAllocate: (id: string) => void;
   onViewAllocations: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
-export default function ResourceCard({ resource, onEdit, onAllocate, onViewAllocations }: ResourceCardProps) {
+export default function ResourceCard({ resource, onEdit, onAllocate, onViewAllocations, onDelete }: ResourceCardProps) {
   const [editingQty, setEditingQty] = useState(false);
   const [newQty, setNewQty] = useState(resource.quantity.toString());
   const [saving, setSaving] = useState(false);
@@ -74,26 +75,45 @@ export default function ResourceCard({ resource, onEdit, onAllocate, onViewAlloc
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm(`Delete resource "${resource.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/dma/resource/${resource.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      onDelete(resource.id);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete resource");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="bg-surface-2 p-4 clip-path-tactical relative">
       <div className="flex justify-between items-start mb-3">
         <div>
-          <h3 className="font-display font-semibold text-ink text-lg uppercase tracking-wide">
+          <h3 className="font-inter font-semibold text-ink text-base uppercase tracking-wide">
             {resource.name}
           </h3>
-          <p className="font-mono text-[10px] text-muted uppercase tracking-wider mt-0.5">
+          <p className="font-ibm-mono text-[10px] text-muted uppercase tracking-wider mt-0.5">
             Type: {resource.type || "N/A"}
           </p>
         </div>
         {isLowStock && (
-          <span className="bg-caution/20 text-caution px-2 py-0.5 font-mono text-[10px] uppercase">
+          <span className="bg-caution/20 text-caution px-2 py-0.5 font-ibm-mono text-[10px] uppercase">
             {isOutOfStock ? "OUT OF STOCK" : "LOW STOCK"}
           </span>
         )}
       </div>
 
       <div className="mb-3">
-        <div className="flex justify-between text-[11px] font-mono mb-1">
+        <div className="flex justify-between text-[11px] font-ibm-mono mb-1">
           <span className="text-muted">AVAILABLE / TOTAL</span>
           <span className="text-ink">{available.toLocaleString()} / {total.toLocaleString()}</span>
         </div>
@@ -103,13 +123,13 @@ export default function ResourceCard({ resource, onEdit, onAllocate, onViewAlloc
             style={{ width: `${Math.max(percentage, 2)}%` }}
           />
         </div>
-        <div className="flex justify-between text-[10px] font-mono mt-1 text-dim">
+        <div className="flex justify-between text-[10px] font-ibm-mono mt-1 text-dim">
           <span>Allocated: {allocated.toLocaleString()}</span>
           <span>Available: {available.toLocaleString()}</span>
         </div>
       </div>
 
-      <div className="space-y-1.5 text-[10px] font-mono text-dim mb-4">
+      <div className="space-y-1.5 text-[10px] font-inter text-dim mb-4">
         {resource.location && (
           <div className="flex items-center gap-2">
             <span className="text-orange">Location:</span>
@@ -135,7 +155,7 @@ export default function ResourceCard({ resource, onEdit, onAllocate, onViewAlloc
               type="number"
               value={newQty}
               onChange={(e) => setNewQty(e.target.value)}
-              className="w-20 px-2 py-1 bg-surface-3 border border-border text-ink font-mono text-xs"
+              className="w-20 px-2 py-1 bg-surface-3 border border-border text-ink font-ibm-mono text-xs"
               min="0"
             />
             <Button size="small" onClick={handleSave} disabled={saving}>
@@ -146,9 +166,19 @@ export default function ResourceCard({ resource, onEdit, onAllocate, onViewAlloc
             </Button>
           </div>
         ) : (
-          <Button size="small" variant="ghost" onClick={() => setEditingQty(true)}>
-            EDIT QTY
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="small" variant="ghost" onClick={() => setEditingQty(true)}>
+              EDIT QTY
+            </Button>
+            <button
+              onClick={handleDelete}
+              disabled={saving}
+              className="px-2 py-1 text-[10px] font-ibm-mono text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors uppercase tracking-wider"
+              title="Delete resource"
+            >
+              DELETE
+            </button>
+          </div>
         )}
 
         <Button size="small" variant="primary" onClick={() => onAllocate(resource.id)} disabled={isOutOfStock}>
@@ -158,7 +188,7 @@ export default function ResourceCard({ resource, onEdit, onAllocate, onViewAlloc
 
       <button
         onClick={() => onViewAllocations(resource.id)}
-        className="mt-3 w-full text-center text-[10px] font-mono text-orange hover:text-orange/80 uppercase tracking-wider py-1 border-t border-border-dim pt-2"
+        className="mt-3 w-full text-center text-[10px] font-ibm-mono text-orange hover:text-orange/80 uppercase tracking-wider py-1 border-t border-border-dim pt-2"
       >
         VIEW ALLOCATIONS →
       </button>

@@ -477,7 +477,7 @@ function MessagesContent() {
   if (loading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-white">
-        <span className="font-mono text-[11px] text-gray-400 uppercase tracking-wider">
+        <span className="font-inter text-[11px] text-gray-400 uppercase tracking-wider">
           AUTHENTICATING...
         </span>
       </div>
@@ -492,7 +492,7 @@ function MessagesContent() {
         {/* Channel List Panel */}
         <div className="w-[280px] bg-white border-r border-gray-100 flex flex-col shrink-0 overflow-hidden">
           <div className="p-3 border-b border-gray-100">
-            <h2 className="font-display text-[14px] font-bold uppercase tracking-wide text-gray-900 mb-3">
+            <h2 className="font-inter text-[14px] font-bold uppercase tracking-wide text-gray-900 mb-3">
               Communication Hub
             </h2>
             
@@ -500,7 +500,7 @@ function MessagesContent() {
             <div className="flex gap-1">
               <button
                 onClick={() => { setActiveTab("victim"); setActiveChannel(null); }}
-                className={`flex-1 px-2 py-1.5 font-mono text-[9px] uppercase tracking-wider transition-colors rounded ${
+                className={`flex-1 px-2 py-1.5 font-inter text-[9px] uppercase tracking-wider transition-colors rounded ${
                   activeTab === "victim"
                     ? "bg-alert/20 text-alert border border-alert/40"
                     : "bg-surface-2 text-dim hover:text-ink border border-transparent"
@@ -510,7 +510,7 @@ function MessagesContent() {
               </button>
               <button
                 onClick={() => { setActiveTab("volunteer"); setActiveChannel(null); }}
-                className={`flex-1 px-2 py-1.5 font-mono text-[9px] uppercase tracking-wider transition-colors rounded ${
+                className={`flex-1 px-2 py-1.5 font-inter text-[9px] uppercase tracking-wider transition-colors rounded ${
                   activeTab === "volunteer"
                     ? "bg-orange/20 text-orange border border-orange/40"
                     : "bg-surface-2 text-dim hover:text-ink border border-transparent"
@@ -520,7 +520,7 @@ function MessagesContent() {
               </button>
               <button
                 onClick={() => { setActiveTab("taskforce"); setActiveChannel(null); }}
-                className={`flex-1 px-2 py-1.5 font-mono text-[9px] uppercase tracking-wider transition-colors rounded ${
+                className={`flex-1 px-2 py-1.5 font-inter text-[9px] uppercase tracking-wider transition-colors rounded ${
                   activeTab === "taskforce"
                     ? "bg-ops/20 text-ops border border-ops/40"
                     : "bg-surface-2 text-dim hover:text-ink border border-transparent"
@@ -534,7 +534,7 @@ function MessagesContent() {
           <div className="flex-1 overflow-y-auto min-h-0">
             {filteredChannels.length === 0 ? (
               <div className="p-4 text-center">
-                <p className="font-mono text-dim text-[10px] uppercase tracking-wider">
+                <p className="font-inter text-dim text-[10px] uppercase tracking-wider">
                   No {activeTab} channels
                 </p>
               </div>
@@ -554,7 +554,7 @@ function MessagesContent() {
                     {/* Channel Header */}
                     <div className="flex items-start justify-between gap-2 mb-1.5 relative">
                       <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded flex items-center justify-center font-display text-[11px] font-bold transition-transform group-hover:scale-110 ${
+                        <div className={`w-8 h-8 rounded flex items-center justify-center font-inter text-[11px] font-bold transition-transform group-hover:scale-110 ${
                           channel.type === "victim_thread" ? "bg-alert/20 text-alert" :
                           channel.type === "taskforce_room" ? "bg-ops/20 text-ops" :
                           "bg-orange/20 text-orange"
@@ -562,11 +562,11 @@ function MessagesContent() {
                           {getInitials(channel.label)}
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-display text-[11px] font-semibold text-ink uppercase truncate">
+                          <span className="font-inter text-[11px] font-semibold text-ink uppercase truncate">
                             {channel.label}
                           </span>
                           {channel.type === "direct" && (
-                            <span className="font-mono text-[7px] text-orange uppercase tracking-wider">Volunteer</span>
+                            <span className="font-ibm-mono text-[7px] text-orange uppercase tracking-wider">Volunteer</span>
                           )}
                         </div>
                       </div>
@@ -575,7 +575,7 @@ function MessagesContent() {
                           <span className="text-alert text-[10px] animate-pulse">⚑</span>
                         )}
                         {channel.unread_count > 0 && (
-                          <span className="w-5 h-5 bg-orange rounded-full flex items-center justify-center font-mono text-[9px] text-void font-bold">
+                          <span className="w-5 h-5 bg-orange rounded-full flex items-center justify-center font-ibm-mono text-[9px] text-void font-bold">
                             {channel.unread_count}
                           </span>
                         )}
@@ -585,28 +585,28 @@ function MessagesContent() {
                     {/* Channel Meta */}
                     <div className="flex items-center gap-2 mb-1">
                       {channel.type === "victim_thread" && channel.urgency && (
-                        <span className={`font-mono text-[8px] uppercase px-1.5 py-0.5 rounded ${getUrgencyColor(channel.urgency)}`}>
+                        <span className={`font-ibm-mono text-[8px] uppercase px-1.5 py-0.5 rounded ${getUrgencyColor(channel.urgency)}`}>
                           {channel.urgency}
                         </span>
                       )}
                       {channel.type === "victim_thread" && channel.situation && (
-                        <span className={`font-mono text-[8px] uppercase ${getSituationColor(channel.situation)}`}>
+                        <span className={`font-ibm-mono text-[8px] uppercase ${getSituationColor(channel.situation)}`}>
                           {channel.situation}
                         </span>
                       )}
-                      <span className="font-mono text-[9px] text-dim truncate">
+                      <span className="font-ibm-mono text-[9px] text-dim truncate">
                         {channel.subtitle}
                       </span>
                     </div>
                     
                     {/* Last Message Preview */}
                     {channel.last_message && (
-                      <p className="font-body text-[10px] text-muted truncate leading-tight">
+                      <p className="font-inter text-[10px] text-muted truncate leading-tight">
                         {channel.last_message}
                       </p>
                     )}
                     {channel.last_message_time && (
-                      <p className="font-mono text-[8px] text-dim mt-1">
+                      <p className="font-ibm-mono text-[8px] text-dim mt-1">
                         {formatTime(channel.last_message_time)}
                       </p>
                     )}
@@ -624,7 +624,7 @@ function MessagesContent() {
               {/* Thread Header */}
               <div className="p-4 bg-surface-1 border-b border-border-dim shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded flex items-center justify-center font-display text-[14px] font-bold shrink-0 ${
+                  <div className={`w-12 h-12 rounded flex items-center justify-center font-inter text-[14px] font-bold shrink-0 ${
                     activeChannel.type === "victim_thread" ? "bg-alert/20 text-alert" :
                     activeChannel.type === "taskforce_room" ? "bg-ops/20 text-ops" :
                     "bg-orange/20 text-orange"
@@ -632,10 +632,10 @@ function MessagesContent() {
                     {getInitials(activeChannel.label)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-display text-[14px] font-semibold text-ink uppercase truncate">
+                    <h3 className="font-inter text-[14px] font-semibold text-ink uppercase truncate">
                       {activeChannel.label}
                     </h3>
-                    <p className="font-mono text-[10px] text-dim">
+                    <p className="font-ibm-mono text-[10px] text-dim">
                       {activeChannel.subtitle}
                     </p>
                   </div>
@@ -643,17 +643,17 @@ function MessagesContent() {
                   {activeChannelData && (
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <div className="flex items-center gap-2">
-                        <span className={`font-mono text-[9px] uppercase px-2 py-1 rounded ${getUrgencyColor(activeChannelData.urgency)}`}>
+                        <span className={`font-ibm-mono text-[9px] uppercase px-2 py-1 rounded ${getUrgencyColor(activeChannelData.urgency)}`}>
                           {activeChannelData.urgency}
                         </span>
-                        <span className={`font-mono text-[9px] uppercase ${getSituationColor(activeChannelData.situation)}`}>
+                        <span className={`font-ibm-mono text-[9px] uppercase ${getSituationColor(activeChannelData.situation)}`}>
                           {activeChannelData.situation}
                         </span>
                       </div>
-                      <p className="font-mono text-[9px] text-dim">
+                      <p className="font-ibm-mono text-[9px] text-dim">
                         📍 {activeChannelData.city}, {activeChannelData.district}
                       </p>
-                      <p className="font-mono text-[9px] text-muted">
+                      <p className="font-ibm-mono text-[9px] text-muted">
                         📞 {activeChannelData.phone_no}
                       </p>
                     </div>
@@ -661,10 +661,10 @@ function MessagesContent() {
 
                   {activeChannel.type === "direct" && activeChannel.phone_no && (
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className={`font-mono text-[9px] uppercase px-2 py-1 rounded ${getTypeBadgeColor(activeChannel.subtitle?.split('·')[0]?.trim() || '')}`}>
+                      <span className={`font-ibm-mono text-[9px] uppercase px-2 py-1 rounded ${getTypeBadgeColor(activeChannel.subtitle?.split('·')[0]?.trim() || '')}`}>
                         Volunteer
                       </span>
-                      <p className="font-mono text-[9px] text-muted">
+                      <p className="font-ibm-mono text-[9px] text-muted">
                         📞 {activeChannel.phone_no}
                       </p>
                     </div>
@@ -675,7 +675,7 @@ function MessagesContent() {
               {/* TF Members Panel - Separate from header to prevent layout shift */}
               {activeChannel.type === "taskforce_room" && tfMembers.length > 0 && (
                 <div className="bg-surface-2 border-b border-border-dim p-3 shrink-0">
-                  <p className="font-mono text-[9px] text-dim uppercase tracking-wider mb-2">👥 Team Members ({tfMembers.length})</p>
+                  <p className="font-ibm-mono text-[9px] text-dim uppercase tracking-wider mb-2">👥 Team Members ({tfMembers.length})</p>
                   <div className="flex flex-wrap gap-2">
                     {tfMembers.map((member) => (
                       <div
@@ -689,13 +689,13 @@ function MessagesContent() {
                           {getInitials(member.name)}
                         </div>
                         <div className="min-w-0">
-                          <span className="font-body text-[11px] text-ink block truncate max-w-[80px]">{member.name}</span>
-                          <span className={`font-mono text-[7px] px-1 py-0.5 uppercase ${getTypeBadgeColor(member.type)}`}>
+                          <span className="font-inter text-[11px] text-ink block truncate max-w-[80px]">{member.name}</span>
+                          <span className={`font-ibm-mono text-[7px] px-1 py-0.5 uppercase ${getTypeBadgeColor(member.type)}`}>
                             {member.type?.slice(0, 3)}
                           </span>
                         </div>
                         {member.mobile_no && (
-                          <span className="font-mono text-[8px] text-dim shrink-0">{member.mobile_no}</span>
+                          <span className="font-ibm-mono text-[8px] text-dim shrink-0">{member.mobile_no}</span>
                         )}
                       </div>
                     ))}
@@ -712,10 +712,10 @@ function MessagesContent() {
                         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
                       </svg>
                     </div>
-                    <p className="font-mono text-dim text-[11px] uppercase tracking-wider">
+                    <p className="font-inter text-dim text-[11px] uppercase tracking-wider">
                       No messages yet
                     </p>
-                    <p className="font-mono text-dim text-[10px] mt-1">
+                    <p className="font-ibm-mono text-dim text-[10px] mt-1">
                       Start the conversation
                     </p>
                   </div>
@@ -725,7 +725,7 @@ function MessagesContent() {
                       {/* Date Divider */}
                       <div className="flex items-center gap-3 my-4">
                         <div className="flex-1 h-px bg-border-dim" />
-                        <span className="font-mono text-[9px] text-dim uppercase tracking-wider px-2 py-0.5 bg-surface-2">
+                        <span className="font-ibm-mono text-[9px] text-dim uppercase tracking-wider px-2 py-0.5 bg-surface-2">
                           {group.date}
                         </span>
                         <div className="flex-1 h-px bg-border-dim" />
@@ -749,7 +749,7 @@ function MessagesContent() {
                                 {/* Sender Label */}
                                 {!isDma && (
                                   <div className="flex items-center gap-2 mb-1.5 ml-1">
-                                    <span className={`font-display text-[10px] font-semibold uppercase ${
+                                    <span className={`font-inter text-[10px] font-semibold uppercase ${
                                       isUnread ? "text-orange" : "text-muted"
                                     }`}>
                                       {msg.sender_name || "Unknown"}
@@ -763,7 +763,7 @@ function MessagesContent() {
                                 {/* DMA Badge */}
                                 {isDma && (
                                   <div className="flex items-center gap-1 mb-1.5 justify-end mr-1">
-                                    <span className="font-mono text-[8px] text-orange uppercase tracking-widest bg-orange/20 px-2 py-0.5 rounded">
+                                    <span className="font-ibm-mono text-[8px] text-orange uppercase tracking-widest bg-orange/20 px-2 py-0.5 rounded">
                                       🟧 DMA COMMAND
                                     </span>
                                   </div>
@@ -782,7 +782,7 @@ function MessagesContent() {
                                       : "polygon(14px 0, 100% 0, 100% 100%, 0 100%, 0 14px)",
                                   }}
                                 >
-                                  <p className="font-body text-[14px] leading-relaxed whitespace-pre-wrap">
+                                  <p className="font-inter text-[14px] leading-relaxed whitespace-pre-wrap">
                                     {msg.content}
                                   </p>
                                   {isDma && (
@@ -794,11 +794,11 @@ function MessagesContent() {
 
                                 {/* Message Meta */}
                                 <div className={`flex items-center gap-2 mt-1.5 ${isDma ? "justify-end" : "justify-start"} mx-1`}>
-                                  <span className="font-mono text-[9px] text-dim/80">
+                                  <span className="font-ibm-mono text-[9px] text-dim/80">
                                     {formatTime(msg.created_at)}
                                   </span>
                                   {isFlagged && (
-                                    <span className="font-mono text-[9px] text-alert uppercase tracking-wider flex items-center gap-1">
+                                    <span className="font-ibm-mono text-[9px] text-alert uppercase tracking-wider flex items-center gap-1">
                                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M10 2L12.5 8.5L19.5 9.5L14.5 14L16 21L10 17.5L4 21L5.5 14L0.5 9.5L7.5 8.5L10 2Z"/>
                                       </svg>
@@ -824,7 +824,7 @@ function MessagesContent() {
                     scrollToBottom('smooth');
                     setNewMessagesCount(0);
                   }}
-                  className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange to-orange/90 text-void px-5 py-2.5 rounded-full font-display text-[11px] font-bold tracking-wide shadow-[0_4px_20px_rgba(249,115,22,0.4)] hover:scale-105 hover:shadow-[0_6px_30px_rgba(249,115,22,0.5)] active:scale-95 transition-all duration-200 flex items-center gap-2 z-10 animate-bounce-subtle"
+                  className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange to-orange/90 text-void px-5 py-2.5 rounded-full font-inter text-[11px] font-bold tracking-wide shadow-[0_4px_20px_rgba(249,115,22,0.4)] hover:scale-105 hover:shadow-[0_6px_30px_rgba(249,115,22,0.5)] active:scale-95 transition-all duration-200 flex items-center gap-2 z-10 animate-bounce-subtle"
                   style={{ clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))' }}
                 >
                   <svg className="w-4 h-4 animate-bounce" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -844,14 +844,14 @@ function MessagesContent() {
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && !sending && handleSendMessage()}
                       placeholder={`Message ${activeChannel.label}...`}
-                      className="w-full px-5 py-4 bg-surface-2/80 border border-border-dim/30 rounded-lg font-body text-[14px] text-ink placeholder:text-dim/60 focus:outline-none focus:border-orange/50 focus:ring-2 focus:ring-orange/20 transition-all"
+                      className="w-full px-5 py-4 bg-surface-2/80 border border-border-dim/30 rounded-lg font-inter text-[14px] text-ink placeholder:text-dim/60 focus:outline-none focus:border-orange/50 focus:ring-2 focus:ring-orange/20 transition-all"
                     />
                     <div className="absolute inset-0 rounded-lg pointer-events-none bg-gradient-to-r from-orange/5 via-transparent to-transparent opacity-0 focus-within:opacity-100 transition-opacity" />
                   </div>
                   <button
                     onClick={handleSendMessage}
                     disabled={!newMessage.trim() || sending}
-                    className={`relative px-8 py-4 font-display font-bold text-[12px] uppercase tracking-[0.15em] transition-all duration-300 ${
+                    className={`relative px-8 py-4 font-inter font-bold text-[12px] uppercase tracking-[0.1em] transition-all duration-300 ${
                       newMessage.trim() && !sending
                         ? "bg-orange text-void hover:bg-orange/90 hover:scale-105 hover:shadow-[0_0_20px_rgba(249,115,22,0.4)] active:scale-95"
                         : "bg-surface-3 text-dim/50 cursor-not-allowed"
@@ -886,24 +886,24 @@ function MessagesContent() {
                   <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
                 </svg>
               </div>
-              <p className="font-display text-[16px] text-dim uppercase tracking-[0.2em] mb-3">
+              <p className="font-inter text-[16px] text-dim uppercase tracking-[0.2em] mb-3">
                 Select a Channel
               </p>
-              <p className="font-mono text-[11px] text-dim/60">
+              <p className="font-ibm-mono text-[11px] text-dim/60">
                 Choose from Victim Reports, Volunteers, or TF Groups
               </p>
               <div className="mt-8 flex items-center gap-6">
                 <div className="flex items-center gap-2 text-dim/40">
                   <div className="w-2 h-2 rounded-full bg-alert/60" />
-                  <span className="font-mono text-[9px] uppercase">Critical</span>
+                  <span className="font-ibm-mono text-[9px] uppercase">Critical</span>
                 </div>
                 <div className="flex items-center gap-2 text-dim/40">
                   <div className="w-2 h-2 rounded-full bg-ops/60" />
-                  <span className="font-mono text-[9px] uppercase">Active</span>
+                  <span className="font-ibm-mono text-[9px] uppercase">Active</span>
                 </div>
                 <div className="flex items-center gap-2 text-dim/40">
                   <div className="w-2 h-2 rounded-full bg-orange/60" />
-                  <span className="font-mono text-[9px] uppercase">Direct</span>
+                  <span className="font-ibm-mono text-[9px] uppercase">Direct</span>
                 </div>
               </div>
             </div>
@@ -918,7 +918,7 @@ export default function MessagesPage() {
   return (
     <Suspense fallback={
       <div className="h-screen w-screen flex items-center justify-center bg-void">
-        <span className="font-mono text-[11px] text-dim uppercase tracking-wider">
+        <span className="font-inter text-[11px] text-dim uppercase tracking-wider">
           LOADING...
         </span>
       </div>

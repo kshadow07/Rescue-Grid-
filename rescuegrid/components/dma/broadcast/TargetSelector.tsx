@@ -29,7 +29,7 @@ export default function TargetSelector({
 
   return (
     <div className="space-y-3">
-      <label className="font-mono text-[10px] text-orange uppercase tracking-[0.2em]">
+      <label className="font-inter text-[10px] text-orange uppercase tracking-[0.2em]">
         TARGET AUDIENCE
       </label>
       
@@ -63,10 +63,10 @@ export default function TargetSelector({
                 className="sr-only"
               />
               <div className="flex-1">
-                <span className="font-mono text-xs uppercase text-ink">
+                <span className="font-inter text-xs uppercase text-ink">
                   {t.label}
                 </span>
-                <span className="font-mono text-[10px] text-dim ml-2">
+                <span className="font-ibm-mono text-[10px] text-dim ml-2">
                   {t.desc}
                 </span>
               </div>
@@ -77,7 +77,7 @@ export default function TargetSelector({
                 <select
                   value={selectedTaskForceId}
                   onChange={(e) => onTaskForceChange(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-3 border border-border-dim border-l-3 border-l-orange font-body text-sm text-ink focus:outline-none focus:border-orange"
+                  className="w-full px-3 py-2 bg-surface-3 border border-border-dim border-l-3 border-l-orange font-inter text-sm text-ink focus:outline-none focus:border-orange"
                 >
                   <option value="">Select Task Force...</option>
                   {taskForces.map((tf) => (

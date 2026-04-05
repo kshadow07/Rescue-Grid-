@@ -1,6 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = createServiceClient();
+    const { id } = await params;
+
+    const { error } = await supabase
+      .from("resource")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Delete resource error:", error);
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Delete resource error:", err);
+    return NextResponse.json(
+      { error: "Failed to delete resource" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

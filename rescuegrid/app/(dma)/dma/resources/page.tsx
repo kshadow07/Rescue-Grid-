@@ -40,22 +40,10 @@ export default function ResourcesPage() {
 
   const loadResources = useCallback(async () => {
     try {
-      const res = await fetch("/api/dma/resource/list");
+      const res = await fetch("/api/dma/resource/list-with-allocations");
       const data = await res.json();
       if (Array.isArray(data)) {
-        const resWithAlloc = await Promise.all(
-          data.map(async (r: Resource) => {
-            const allocRes = await fetch(`/api/dma/resource/allocations?resource_id=${r.id}`);
-            const allocData = await allocRes.json();
-            const allocated = Array.isArray(allocData)
-              ? allocData
-                  .filter((a: { status: string }) => ["allocated", "in_use"].includes(a.status))
-                  .reduce((sum: number, a: { quantity_allocated: number }) => sum + a.quantity_allocated, 0)
-              : 0;
-            return { ...r, quantity_allocated: allocated, quantity_available: r.quantity - allocated };
-          })
-        );
-        setResources(resWithAlloc);
+        setResources(data);
       }
     } catch (err) {
       console.error("Failed to load resources:", err);
@@ -115,6 +103,10 @@ export default function ResourcesPage() {
     setActiveTab("allocations");
   };
 
+  const handleDelete = (id: string) => {
+    setResources((prev) => prev.filter((r) => r.id !== id));
+  };
+
   const handleCreated = () => {
     loadResources();
   };
@@ -129,7 +121,7 @@ export default function ResourcesPage() {
       <div className="pt-[52px]">
         <div className="border-b border-gray-200 bg-white">
           <div className="px-6 py-4 flex justify-between items-center">
-            <h1 className="font-display font-bold text-2xl text-gray-900 uppercase tracking-wider">
+            <h1 className="font-inter font-bold text-xl text-gray-900 uppercase tracking-wider">
               RESOURCES
             </h1>
             <Button onClick={() => setShowCreateModal(true)}>
@@ -140,7 +132,7 @@ export default function ResourcesPage() {
           <div className="flex px-6">
           <button
             onClick={() => setActiveTab("inventory")}
-            className={`px-4 py-2 font-mono text-xs uppercase tracking-wider border-b-2 transition-colors ${
+            className={`px-4 py-2 font-inter text-xs uppercase tracking-wider border-b-2 transition-colors ${
               activeTab === "inventory"
                 ? "text-orange border-orange"
                 : "text-gray-400 border-transparent hover:text-gray-700"
@@ -150,7 +142,7 @@ export default function ResourcesPage() {
           </button>
           <button
             onClick={() => { setActiveTab("allocations"); setAllocationFilterId(undefined); }}
-            className={`px-4 py-2 font-mono text-xs uppercase tracking-wider border-b-2 transition-colors ${
+            className={`px-4 py-2 font-inter text-xs uppercase tracking-wider border-b-2 transition-colors ${
               activeTab === "allocations"
                 ? "text-orange border-orange"
                 : "text-gray-400 border-transparent hover:text-gray-700"
@@ -165,14 +157,14 @@ export default function ResourcesPage() {
         {activeTab === "inventory" ? (
           loading ? (
             <div className="text-center py-12">
-              <p className="font-mono text-gray-400 text-sm">Loading resources...</p>
+              <p className="font-inter text-gray-400 text-sm">Loading resources...</p>
             </div>
           ) : resources.length === 0 ? (
             <div className="text-center py-12">
-              <p className="font-mono text-gray-400 text-sm uppercase tracking-wider">
+              <p className="font-inter text-gray-400 text-sm uppercase tracking-wider">
                 NO RESOURCES LOGGED
               </p>
-              <p className="font-mono text-gray-400 text-xs mt-2">
+              <p className="font-ibm-mono text-gray-400 text-xs mt-2">
                 Click &quot;+ ADD RESOURCE&quot; to add your first resource
               </p>
             </div>
@@ -185,6 +177,7 @@ export default function ResourcesPage() {
                   onEdit={handleEdit}
                   onAllocate={handleAllocate}
                   onViewAllocations={handleViewAllocations}
+                  onDelete={handleDelete}
                 />
               ))}
             </div>
@@ -195,7 +188,7 @@ export default function ResourcesPage() {
               <div className="mb-4">
                 <button
                   onClick={() => setAllocationFilterId(undefined)}
-                  className="text-orange font-mono text-xs hover:underline"
+                  className="text-orange font-inter text-xs hover:underline"
                 >
                   ← Show All
                 </button>
