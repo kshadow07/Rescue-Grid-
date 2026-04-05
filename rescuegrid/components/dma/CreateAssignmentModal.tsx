@@ -9,9 +9,9 @@ interface Volunteer {
   name: string;
   type: string;
   status: string;
-  skills?: string;
+  skills?: string | string[];
   skills_ids?: number[];
-  equipment?: string;
+  equipment?: string | string[];
   latitude?: number;
   longitude?: number;
   distance_km?: number;
@@ -229,14 +229,18 @@ export default function CreateAssignmentModal({ linkedReportId, onClose, onCreat
     }
     
     if (volunteer.skills) {
-      const skillsList = volunteer.skills.toLowerCase().split(",").map(s => s.trim());
+      const skillsList = Array.isArray(volunteer.skills)
+        ? volunteer.skills.map(s => String(s).toLowerCase().trim())
+        : volunteer.skills.toLowerCase().split(",").map(s => s.trim());
       const taskKeywords = taskLower.split(/\s+/);
       const matches = skillsList.filter(skill => taskKeywords.some(kw => kw.includes(skill) || skill.includes(kw)));
       score += matches.length * 15;
     }
     
     if (volunteer.equipment) {
-      const equipmentList = volunteer.equipment.toLowerCase().split(",").map(e => e.trim());
+      const equipmentList = Array.isArray(volunteer.equipment)
+        ? volunteer.equipment.map(e => String(e).toLowerCase().trim())
+        : volunteer.equipment.toLowerCase().split(",").map(e => e.trim());
       const matches = equipmentList.filter(eq => taskLower.includes(eq));
       score += matches.length * 10;
     }
@@ -731,9 +735,15 @@ export default function CreateAssignmentModal({ linkedReportId, onClose, onCreat
                                       <div className="font-body text-[13px] text-ink font-semibold">{vol.name}</div>
                                       <div className="flex items-center gap-2 font-mono text-[10px] text-dim">
                                         <span>{vol.type}</span>
-                                        {vol.skills && vol.skills.split(",").slice(0, 2).map((s, i) => (
-                                          <span key={i} className="text-ops/70">{s.trim()}</span>
-                                        ))}
+                                        {Array.isArray(vol.skills) 
+                                          ? vol.skills.slice(0, 2).map((s, i) => (
+                                            <span key={i} className="text-ops/70">{String(s).trim()}</span>
+                                          ))
+                                          : typeof vol.skills === 'string'
+                                          ? vol.skills.split(",").slice(0, 2).map((s, i) => (
+                                            <span key={i} className="text-ops/70">{s.trim()}</span>
+                                          ))
+                                          : null}
                                       </div>
                                     </div>
                                   </div>
@@ -898,12 +908,24 @@ export default function CreateAssignmentModal({ linkedReportId, onClose, onCreat
                                   <div>
                                     <div className="font-body text-[12px] text-ink">{vol.name}</div>
                                     <div className="flex items-center gap-2 font-mono text-[9px] text-dim">
-                                      {vol.skills?.split(",").slice(0, 2).map((s, i) => (
-                                        <span key={i} className="text-ops/70">{s.trim()}</span>
-                                      ))}
-                                      {vol.equipment?.split(",").slice(0, 1).map((e, i) => (
-                                        <span key={i} className="text-caution/70">{e.trim()}</span>
-                                      ))}
+                                      {Array.isArray(vol.skills) 
+                                        ? vol.skills.slice(0, 2).map((s, i) => (
+                                          <span key={i} className="text-ops/70">{String(s).trim()}</span>
+                                        ))
+                                        : typeof vol.skills === 'string'
+                                        ? vol.skills.split(",").slice(0, 2).map((s, i) => (
+                                          <span key={i} className="text-ops/70">{s.trim()}</span>
+                                        ))
+                                        : null}
+                                      {Array.isArray(vol.equipment)
+                                        ? vol.equipment.slice(0, 1).map((e, i) => (
+                                          <span key={i} className="text-caution/70">{String(e).trim()}</span>
+                                        ))
+                                        : typeof vol.equipment === 'string'
+                                        ? vol.equipment.split(",").slice(0, 1).map((e, i) => (
+                                          <span key={i} className="text-caution/70">{e.trim()}</span>
+                                        ))
+                                        : null}
                                     </div>
                                   </div>
                                 </div>

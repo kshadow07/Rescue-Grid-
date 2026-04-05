@@ -136,12 +136,12 @@ export default function VolunteerList() {
                       <div>
                         <span className="font-mono text-[9px] text-dim uppercase block mb-1">Skills</span>
                         <div className="flex flex-wrap gap-1">
-                          {vol.skills.split(",").map((skill, i) => (
+                          {(Array.isArray(vol.skills) ? vol.skills : vol.skills.split(",")).map((skill, i) => (
                             <span
                               key={i}
                               className="font-mono text-[9px] text-ink bg-surface-3 px-1.5 py-0.5"
                             >
-                              {skill.trim()}
+                              {String(skill).trim()}
                             </span>
                           ))}
                         </div>

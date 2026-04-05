@@ -10,8 +10,8 @@ export interface Volunteer {
   type: string;
   latitude: number;
   longitude: number;
-  skills: string;
-  equipment: string;
+  skills: string | string[];
+  equipment: string | string[];
   status: string;
   tier?: number;
   last_seen: string | null;
