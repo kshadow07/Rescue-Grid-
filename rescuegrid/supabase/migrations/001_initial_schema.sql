@@ -86,6 +86,20 @@ CREATE TABLE public.resource_allocation (
   CONSTRAINT resource_allocation_task_force_id_fkey FOREIGN KEY (task_force_id) REFERENCES public.task_force(id),
   CONSTRAINT resource_allocation_volunteer_id_fkey FOREIGN KEY (volunteer_id) REFERENCES public.volunteer(id)
 );
+CREATE TABLE public.skill_categories (
+  id integer NOT NULL DEFAULT nextval('skill_categories_id_seq'::regclass),
+  code text NOT NULL UNIQUE,
+  name text NOT NULL,
+  CONSTRAINT skill_categories_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.skill_definitions (
+  id integer NOT NULL DEFAULT nextval('skill_definitions_id_seq'::regclass),
+  category_id integer NOT NULL,
+  code text NOT NULL UNIQUE,
+  name text NOT NULL,
+  CONSTRAINT skill_definitions_pkey PRIMARY KEY (id),
+  CONSTRAINT skill_definitions_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.skill_categories(id)
+);
 CREATE TABLE public.task_force (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text NOT NULL,
@@ -136,5 +150,13 @@ CREATE TABLE public.volunteer (
   last_seen timestamp with time zone,
   auth_id uuid UNIQUE,
   accuracy double precision,
+  tier smallint NOT NULL DEFAULT 1 CHECK (tier >= 1 AND tier <= 4),
   CONSTRAINT volunteer_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.volunteer_skills (
+  volunteer_id uuid NOT NULL,
+  skill_id integer NOT NULL,
+  CONSTRAINT volunteer_skills_pkey PRIMARY KEY (volunteer_id, skill_id),
+  CONSTRAINT volunteer_skills_volunteer_id_fkey FOREIGN KEY (volunteer_id) REFERENCES public.volunteer(id),
+  CONSTRAINT volunteer_skills_skill_id_fkey FOREIGN KEY (skill_id) REFERENCES public.skill_definitions(id)
 );
