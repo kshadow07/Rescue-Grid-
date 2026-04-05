@@ -6,13 +6,13 @@ import "./globals.css";
 const barlow = Barlow({
   variable: "--font-body",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const barlowCondensed = Barlow_Condensed({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["500", "600", "700", "800"],
 });
 
 const jetbrainsMono = JetBrains_Mono({

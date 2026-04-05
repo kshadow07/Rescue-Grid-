@@ -14,6 +14,13 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
+// Map styles
+const MAP_STYLES = {
+  dark: "mapbox://styles/mapbox/dark-v11",
+  satellite: "mapbox://styles/mapbox/satellite-streets-v12",
+  navigation: "mapbox://styles/mapbox/navigation-night-v1"
+};
+
 const SITUATION_STYLES: Record<string, { color: string; label: string }> = {
   rescue: { color: "#FF3B3B", label: "RESCUE" },
   food: { color: "#2ECC71", label: "FOOD" },
@@ -229,8 +236,43 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
   taskForceMembersRef.current = taskForceMembers;
 
   const routeGeometryRef = useRef<any>(null);
+  // Store real route geometries from Directions API
+  // Store real route geometries from Directions API
+  const [routeGeometries, setRouteGeometries] = useState<Record<string, any>>({});
+  const routeGeometriesRef = useRef<Record<string, any>>({});
+  routeGeometriesRef.current = routeGeometries;
+
+  // Fetch real route from MapBox Directions API
+  const fetchRouteGeometry = useCallback(async (
+    fromLng: number, 
+    fromLat: number, 
+    toLng: number, 
+    toLat: number,
+    routeKey: string
+  ) => {
+    // Check if we already have this route cached
+    if (routeGeometriesRef.current[routeKey]) {
+      return routeGeometriesRef.current[routeKey];
+    }
+    
+    try {
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${fromLng},${fromLat};${toLng},${toLat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.routes && data.routes.length > 0) {
+        const geometry = data.routes[0].geometry;
+        setRouteGeometries(prev => ({ ...prev, [routeKey]: geometry }));
+        return geometry;
+      }
+    } catch (error) {
+      console.error('Failed to fetch route:', error);
+    }
+    return null;
+  }, []);
 
   // Active Mission GeoJSON - includes both individual volunteer and task force assignments
+  // Uses real Directions API routes when available
   const activeMissionGeoJSON: any = {
     type: 'FeatureCollection',
     features: assignments
@@ -245,9 +287,23 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
         if (a.assigned_to_volunteer) {
           const volunteer = volunteers.find(v => v.id === a.assigned_to_volunteer);
           if (volunteer) {
+            const routeKey = `vol-${volunteer.id}-${victim.id}`;
+            const cachedGeometry = routeGeometries[routeKey];
+            
+            // Fetch real route if not cached
+            if (!cachedGeometry) {
+              fetchRouteGeometry(
+                volunteer.longitude, 
+                volunteer.latitude, 
+                victim.longitude, 
+                victim.latitude,
+                routeKey
+              );
+            }
+            
             features.push({
               type: 'Feature',
-              geometry: {
+              geometry: cachedGeometry || {
                 type: 'LineString',
                 coordinates: [
                   [volunteer.longitude, volunteer.latitude],
@@ -257,7 +313,8 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
               properties: {
                 status: a.status,
                 id: a.id,
-                type: 'volunteer'
+                type: 'volunteer',
+                isRealRoute: !!cachedGeometry
               }
             });
           }
@@ -267,9 +324,23 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
         if (a.assigned_to_taskforce && layers.taskForceRoutes) {
           const tfMembers = taskForceMembers.filter(m => m.task_force_id === a.assigned_to_taskforce);
           tfMembers.forEach(member => {
+            const routeKey = `tf-${member.id}-${victim.id}`;
+            const cachedGeometry = routeGeometries[routeKey];
+            
+            // Fetch real route if not cached
+            if (!cachedGeometry) {
+              fetchRouteGeometry(
+                member.longitude, 
+                member.latitude, 
+                victim.longitude, 
+                victim.latitude,
+                routeKey
+              );
+            }
+            
             features.push({
               type: 'Feature',
-              geometry: {
+              geometry: cachedGeometry || {
                 type: 'LineString',
                 coordinates: [
                   [member.longitude, member.latitude],
@@ -281,7 +352,8 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
                 id: a.id,
                 type: 'taskforce',
                 memberId: member.id,
-                memberName: member.name
+                memberName: member.name,
+                isRealRoute: !!cachedGeometry
               }
             });
           });
@@ -294,7 +366,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
   const fitBoundsToDataRef = useRef<(() => void) | null>(null);
   
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [mapStyle, setMapStyleState] = useState<"dark" | "satellite">("dark");
+  const [mapStyle, setMapStyleState] = useState<"dark" | "satellite" | "navigation">("dark");
   const [selectionMode, setSelectionMode] = useState<"normal" | "destination">("normal");
   const [originReport, setOriginReport] = useState<VictimReport | null>(null);
   const [destinationVolunteer, setDestinationVolunteer] = useState<Volunteer | null>(null);
@@ -628,7 +700,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
           zoom: 10
         }}
         style={{ width: "100%", height: "100%" }}
-        mapStyle={mapStyle === "dark" ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/satellite-streets-v12"}
+        mapStyle={MAP_STYLES[mapStyle]}
         onLoad={() => setMapLoaded(true)}
       >
         <NavigationControl position="bottom-right" />
@@ -731,25 +803,39 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
           </Marker>
         ))}
 
-        {/* Active Mission Routes */}
+        {/* Active Mission Routes - Real Routes vs Straight Lines */}
         <Source id="active-missions" type="geojson" data={activeMissionGeoJSON}>
+          {/* Real routes - solid bright orange */}
           <Layer
-            id="mission-routes"
+            id="mission-routes-real"
             type="line"
+            filter={["==", ["get", "isRealRoute"], true]}
+            paint={{
+              "line-color": "#FF6B2B",
+              "line-width": 3,
+              "line-opacity": 0.85
+            }}
+          />
+          {/* Temporary straight lines - dashed dimmed */}
+          <Layer
+            id="mission-routes-temp"
+            type="line"
+            filter={["!=", ["get", "isRealRoute"], true]}
             paint={{
               "line-color": "#FF6B2B",
               "line-width": 2,
-              "line-dasharray": [2, 1],
-              "line-opacity": 0.6
+              "line-dasharray": [4, 3],
+              "line-opacity": 0.4
             }}
           />
+          {/* Casing for all routes */}
           <Layer
             id="mission-routes-casing"
             type="line"
             paint={{
               "line-color": "#000000",
-              "line-width": 4,
-              "line-opacity": 0.2
+              "line-width": 5,
+              "line-opacity": 0.25
             }}
           />
         </Source>
@@ -816,8 +902,8 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
               <div className="absolute inset-0 w-12 h-12 border-[3px] border-orange/30 rounded-full animate-ping"></div>
             </div>
             <div className="text-center">
-              <div className="font-mono text-[11px] text-gray-400 uppercase tracking-[0.2em] mb-1">Initializing Map</div>
-              <div className="font-mono text-[9px] text-gray-300 uppercase tracking-wider">Loading incident data...</div>
+              <div className="font-mono text-[12px] font-bold text-gray-500 uppercase tracking-[0.15em] mb-1">Initializing Map</div>
+              <div className="font-mono text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Loading incident data...</div>
             </div>
           </div>
         </div>
@@ -825,10 +911,10 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
 
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
         <button 
-          onClick={() => setMapStyleState(mapStyle === "dark" ? "satellite" : "dark")}
-          className="px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-gray-200 font-mono text-[10px] text-gray-600 uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-all rounded-sm shadow-sm"
+          onClick={() => setMapStyleState(mapStyle === "dark" ? "satellite" : mapStyle === "satellite" ? "navigation" : "dark")}
+          className="px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-gray-200 font-mono text-[10px] font-semibold text-gray-600 uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-color-snappy rounded-sm shadow-sm"
         >
-          {mapStyle === "dark" ? "🛰️ SATELLITE" : "🌑 DARK"}
+          {mapStyle === "dark" ? "🛰️ SATELLITE" : mapStyle === "satellite" ? "🧭 NAV" : "🌑 DARK"}
         </button>
         <button 
           onClick={() => fitBoundsToDataRef.current?.()}
@@ -889,10 +975,28 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
         )}
       </div>
 
+      {/* Fixed popup hover styles */}
+      {/* Fixed popup hover styles */}
       <style jsx global>{`
-        .mapboxgl-popup-content { background: transparent !important; padding: 0 !important; box-shadow: none !important; }
+        .mapboxgl-popup-content { 
+          background: transparent !important; 
+          padding: 0 !important; 
+          box-shadow: none !important; 
+          border-radius: 4px !important;
+        }
         .mapboxgl-popup-tip { display: none !important; }
         .mapboxgl-popup { z-index: 50; }
+        /* Prevent black hover background */
+        .mapboxgl-popup-content > div {
+          background: transparent !important;
+        }
+        .mapboxgl-popup-content > div:hover {
+          background: transparent !important;
+        }
+        /* Ensure popup container doesn't interfere */
+        .mapboxgl-popup > .mapboxgl-popup-content {
+          pointer-events: auto;
+        }
       `}</style>
     </div>
   );

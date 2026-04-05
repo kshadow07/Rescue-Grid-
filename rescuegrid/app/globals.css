@@ -25,14 +25,19 @@
   --font-body: 'Barlow', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Typography Scale */
-  --text-xs: 0.8125rem;
+  /* Typography Scale - Enhanced for Readability */
+  --text-xs: 0.875rem;
   --text-sm: 0.9375rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.375rem;
-  --text-2xl: 1.625rem;
-  --text-3xl: 2rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.25rem;
+
+  /* Enhanced Contrast Colors */
+  --text-primary: #0D0F12;
+  --text-secondary: #3D4552;
+  --text-dim: #5A6575;
 }
 
 @theme inline {
@@ -62,20 +67,20 @@
   --clip-tactical: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
   --clip-tactical-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
 
-  /* Custom animations */
-  --animate-fade-in-up: fade-in-up 0.4s ease-out forwards;
+  /* Custom animations - SNAPPY STYLE */
+  --animate-fade-in-up: fade-in-up 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   --animate-bounce-subtle: bounce-subtle 2s ease-in-out infinite;
   --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
-  --animate-slide-in: slide-in 0.3s ease-out forwards;
-  --animate-critical-pulse: critical-pulse 2s ease-in-out infinite;
-  --animate-attention-bounce: attention-bounce 1.5s ease-in-out infinite;
-  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
+  --animate-slide-in: slide-in 0.15s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  --animate-critical-pulse: critical-pulse 1.5s ease-in-out infinite;
+  --animate-attention-bounce: attention-bounce 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-shimmer: shimmer 1s linear infinite;
 }
 
 @keyframes fade-in-up {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -104,7 +109,7 @@
 @keyframes slide-in {
   from {
     opacity: 0;
-    transform: translateX(-10px);
+    transform: translateX(-8px);
   }
   to {
     opacity: 1;
@@ -115,19 +120,18 @@
 @keyframes critical-pulse {
   0%, 100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.4);
+    box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.5);
   }
   50% {
-    transform: scale(1.02);
-    box-shadow: 0 0 20px 5px rgba(255, 59, 59, 0.2);
+    transform: scale(1.03);
+    box-shadow: 0 0 16px 4px rgba(255, 59, 59, 0.3);
   }
 }
 
 @keyframes attention-bounce {
   0%, 100% { transform: translateY(0); }
-  25% { transform: translateY(-4px); }
-  50% { transform: translateY(0); }
-  75% { transform: translateY(-2px); }
+  40% { transform: translateY(-6px); }
+  60% { transform: translateY(0); }
 }
 
 @keyframes shimmer {
@@ -157,9 +161,9 @@ body {
   clip-path: var(--clip-tactical-sm);
 }
 
-/* Message bubble entrance animation */
+/* Message bubble entrance animation - SNAPPY */
 .message-bubble {
-  animation: fade-in-up 0.3s ease-out forwards;
+  animation: fade-in-up 0.18s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 /* Scrollbar styling */
@@ -200,13 +204,13 @@ body {
   outline-offset: 2px;
 }
 
-/* Animation utilities */
+/* Animation utilities - SNAPPY */
 .animate-critical-pulse {
-  animation: critical-pulse 2s ease-in-out infinite;
+  animation: critical-pulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 .animate-attention-bounce {
-  animation: attention-bounce 1.5s ease-in-out infinite;
+  animation: attention-bounce 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 .animate-shimmer {
@@ -217,5 +221,20 @@ body {
     var(--bg3) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+  animation: shimmer 1s linear infinite;
+}
+
+/* Snappy transition utilities */
+.transition-snappy {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-color-snappy {
+  transition: color 0.12s cubic-bezier(0.4, 0, 0.2, 1), 
+              background-color 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-transform-snappy {
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
 }
