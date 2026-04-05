@@ -457,9 +457,11 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
       : typeof vol.skills === 'string' 
         ? vol.skills.split(",").map((s: string) => s.trim()) 
         : [];
-    const equipment = typeof vol.equipment === 'string' 
-      ? vol.equipment.split(",").map((s: string) => s.trim()) 
-      : [];
+    const equipment = Array.isArray(vol.equipment)
+      ? vol.equipment.map((s: string | number) => String(s).trim())
+      : typeof vol.equipment === 'string' 
+        ? vol.equipment.split(",").map((s: string) => s.trim()) 
+        : [];
 
     return (
       <div style={{ background: "#13161B", minWidth: 240, borderRadius: 4, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
@@ -516,9 +518,32 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
               </div>
             </div>
           )}
-          {vol.mobile_no && (
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7280", marginTop: 8 }}>📞 {vol.mobile_no}</div>
-          )}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+            {vol.mobile_no && (
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7280" }}>📞 {vol.mobile_no}</span>
+            )}
+            {vol.tier && (
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7280" }}>Tier {vol.tier}</span>
+            )}
+            {vol.last_seen && (
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7280" }}>
+                👁 {(() => {
+                  const diff = Date.now() - new Date(vol.last_seen).getTime();
+                  const mins = Math.floor(diff / 60000);
+                  if (mins < 1) return 'Just now';
+                  if (mins < 60) return `${mins}m ago`;
+                  const hrs = Math.floor(mins / 60);
+                  if (hrs < 24) return `${hrs}h ago`;
+                  return `${Math.floor(hrs / 24)}d ago`;
+                })()}
+              </span>
+            )}
+            {vol.latitude && vol.longitude && (
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7280" }}>
+                📍 {vol.latitude.toFixed(4)}, {vol.longitude.toFixed(4)}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -716,8 +741,10 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
           const map = mapRef.current;
           if (map) {
             const bounds = map.getBounds();
-            const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
-            setMapBbox(bbox);
+            if (bounds) {
+              const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+              setMapBbox(bbox);
+            }
           }
         }}
         onZoomEnd={(e) => {
@@ -725,8 +752,10 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
           const map = mapRef.current;
           if (map) {
             const bounds = map.getBounds();
-            const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
-            setMapBbox(bbox);
+            if (bounds) {
+              const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+              setMapBbox(bbox);
+            }
           }
         }}
         interactiveLayerIds={layers.volunteers ? ['volunteers-unclustered'] : undefined}
@@ -752,6 +781,34 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
             hoverTimeoutRef.current = setTimeout(() => {
               setHoveredVolunteer(null);
             }, 150);
+          }
+        }}
+        onClick={(e) => {
+          if (!layers.volunteers) return;
+          const features = e.features || [];
+          const volunteerFeature = features.find(f => f.layer?.id === 'volunteers-unclustered');
+          if (volunteerFeature?.properties?.id) {
+            const volunteer = volunteers.find(v => v.id === volunteerFeature.properties!.id);
+            if (volunteer) {
+              handleVolunteerClick(volunteer);
+            }
+          }
+          const clusterFeature = features.find(f => f.layer?.id === 'volunteers-clusters');
+          if (clusterFeature?.properties?.cluster_id !== undefined) {
+            const clusterId = clusterFeature.properties.cluster_id as number;
+            const coordinates = (clusterFeature.geometry as GeoJSON.Point).coordinates as [number, number];
+            const source = mapRef.current?.getSource('volunteers') as mapboxgl.GeoJSONSource;
+            if (source) {
+              source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+                if (!err && zoom !== null && zoom !== undefined && mapRef.current) {
+                  mapRef.current.flyTo({
+                    center: coordinates,
+                    zoom: zoom + 0.5,
+                    duration: 500
+                  });
+                }
+              });
+            }
           }
         }}
       >
@@ -791,7 +848,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
               const source = mapRef.current?.getSource('volunteers') as mapboxgl.GeoJSONSource;
               if (source) {
                 source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-                  if (!err && zoom !== undefined && mapRef.current) {
+                  if (!err && zoom !== null && zoom !== undefined && mapRef.current) {
                     mapRef.current.flyTo({
                       center: coordinates,
                       zoom: zoom + 0.5,

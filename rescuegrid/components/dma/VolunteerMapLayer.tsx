@@ -151,10 +151,7 @@ export function VolunteerMapLayer({ volunteers, onVolunteerClick, onClusterClick
     >
       <Layer {...clusterLayer} />
       <Layer {...clusterCountLayer} />
-      <Layer 
-        {...unclusteredLayer}
-        onClick={handleClick}
-      />
+      <Layer {...unclusteredLayer} />
       <Layer {...volunteerLabelLayer} />
     </Source>
   )

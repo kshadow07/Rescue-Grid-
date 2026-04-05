@@ -40,11 +40,14 @@ export async function GET(req: NextRequest) {
       .select(`
         id,
         name,
+        mobile_no,
+        type,
         latitude,
         longitude,
         tier,
         status,
-        volunteer_skills(skill_id)
+        last_seen,
+        volunteer_skills(skill_definitions(code, name))
       `)
       .in('status', ['active', 'standby'])
       .gte('latitude', minLat)
@@ -58,11 +61,14 @@ export async function GET(req: NextRequest) {
       data: volunteers?.map((v: any) => ({
         id: v.id,
         name: v.name,
+        mobile_no: v.mobile_no,
+        type: v.type,
         latitude: v.latitude,
         longitude: v.longitude,
         tier: v.tier,
         status: v.status,
-        skills: v.volunteer_skills?.map((vs: any) => vs.skill_id) || []
+        last_seen: v.last_seen,
+        skills: v.volunteer_skills?.map((vs: any) => vs.skill_definitions?.name).filter(Boolean) || []
       })) || []
     })
   }
@@ -72,11 +78,14 @@ export async function GET(req: NextRequest) {
     .select(`
       id,
       name,
+      mobile_no,
+      type,
       latitude,
       longitude,
       tier,
       status,
-      volunteer_skills(skill_definitions(category:skill_categories(code)))
+      last_seen,
+      volunteer_skills(skill_definitions(code, name, category:skill_categories(code)))
     `)
     .in('status', ['active', 'standby', 'on-mission'])
     .gte('latitude', minLat)
@@ -88,10 +97,14 @@ export async function GET(req: NextRequest) {
   const transformed = volunteers?.map((v: any) => ({
     id: v.id,
     name: v.name,
+    mobile_no: v.mobile_no,
+    type: v.type,
     latitude: v.latitude,
     longitude: v.longitude,
     tier: v.tier,
     status: v.status,
+    last_seen: v.last_seen,
+    skills: v.volunteer_skills?.map((vs: any) => vs.skill_definitions?.name).filter(Boolean) || [],
     primary_category: v.volunteer_skills?.[0]?.skill_definitions?.category?.code || 'UNKNOWN'
   }))
 
