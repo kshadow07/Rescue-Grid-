@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Topbar from "@/components/dma/Topbar";
 import CreateTaskForceModal from "@/components/dma/CreateTaskForceModal";
+import { useAIAssistant } from "@/components/dma/AIAssistantProvider";
 
 interface TaskForceMember {
   volunteer_id: string;
@@ -38,6 +39,7 @@ export default function DeploymentsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const { isOpen: aiDrawerOpen, toggle: toggleAI } = useAIAssistant();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -105,7 +107,7 @@ export default function DeploymentsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Topbar loginTime={loginTime} />
+      <Topbar loginTime={loginTime} aiAssistantOpen={aiDrawerOpen} onToggleAI={toggleAI} />
 
       <div className="pt-[52px] p-6 max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">

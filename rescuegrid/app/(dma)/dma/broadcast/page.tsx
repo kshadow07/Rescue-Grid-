@@ -9,6 +9,8 @@ import Button from "@/components/ui/Button";
 import TargetSelector from "@/components/dma/broadcast/TargetSelector";
 import ConfirmModal from "@/components/dma/broadcast/ConfirmModal";
 import { createClient } from "@/lib/supabase/client";
+import { AIAssistantButton } from "@/components/dma/AIAssistantButton";
+import { useAIAssistant } from "@/components/dma/AIAssistantProvider";
 
 interface TaskForce {
   id: string;
@@ -47,6 +49,7 @@ export default function BroadcastPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [loginTime] = useState(() => new Date());
+  const { isOpen: aiDrawerOpen, toggle: toggleAI } = useAIAssistant();
 
   useEffect(() => {
     fetchCounters();

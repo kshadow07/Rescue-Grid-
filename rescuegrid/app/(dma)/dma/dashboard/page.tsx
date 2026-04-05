@@ -9,7 +9,7 @@ import LeftSidebar from "@/components/dma/LeftSidebar";
 import RightSidebar from "@/components/dma/RightSidebar";
 import MapboxMap from "@/components/dma/MapboxMap";
 import CreateAssignmentModal from "@/components/dma/CreateAssignmentModal";
-import { AIAssistantDrawer } from "@/components/dma/AIAssistantDrawer";
+import { useAIAssistant } from "@/components/dma/AIAssistantProvider";
 import { useNeeds, VictimReport } from "@/hooks/useNeeds";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 import { createClient } from "@/lib/supabase/client";
@@ -31,7 +31,7 @@ function DashboardContent() {
   const [loginTime] = useState(() => new Date());
   const [authLoading, setAuthLoading] = useState(true);
   const [dmaLocation, setDmaLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
+  const { isOpen: aiDrawerOpen, open: openAI, close: closeAI, toggle: toggleAI } = useAIAssistant();
 
   const [filters, setFilters] = useState({
     situations: [] as string[],
@@ -117,7 +117,7 @@ function DashboardContent() {
     }
   }, [reports]);
 
-  useKeyboardShortcut('k', () => setAiDrawerOpen(true), { ctrl: true });
+  useKeyboardShortcut('k', () => toggleAI(), { ctrl: true });
 
   const handleFiltersChange = useCallback((newFilters: typeof filters) => {
     setFilters(newFilters);
@@ -187,7 +187,7 @@ function DashboardContent() {
       <Topbar 
         loginTime={loginTime} 
         aiAssistantOpen={aiDrawerOpen}
-        onToggleAI={() => setAiDrawerOpen(!aiDrawerOpen)}
+        onToggleAI={toggleAI}
       />
 
       <div className="flex flex-1 mt-[52px] overflow-hidden">
@@ -228,11 +228,6 @@ function DashboardContent() {
           onCreated={() => {}}
         />
       )}
-
-      <AIAssistantDrawer
-        isOpen={aiDrawerOpen}
-        onClose={() => setAiDrawerOpen(false)}
-      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import Topbar from "@/components/dma/Topbar";
+import { useAIAssistant } from "@/components/dma/AIAssistantProvider";
 import { useRouter } from "next/navigation";
 
 interface Channel {
@@ -78,6 +79,7 @@ function MessagesContent() {
   const [newMessagesCount, setNewMessagesCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagePanelRef = useRef<HTMLDivElement>(null);
+  const { isOpen: aiDrawerOpen, toggle: toggleAI } = useAIAssistant();
 
   const messageCache = useRef<Record<string, { messages: Message[]; timestamp: number }>>({});
   const channelDataCache = useRef<Record<string, { data: VictimReport | null; timestamp: number }>>({});
@@ -484,7 +486,7 @@ function MessagesContent() {
 
   return (
     <div className="w-screen bg-gray-50 overflow-hidden" style={{ height: '100dvh', display: 'flex', flexDirection: 'column' }}>
-      <Topbar loginTime={loginTime} />
+      <Topbar loginTime={loginTime} aiAssistantOpen={aiDrawerOpen} onToggleAI={toggleAI} />
 
       <div className="flex flex-1 min-h-0" style={{ paddingTop: '52px' }}>
         {/* Channel List Panel */}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Barlow, Barlow_Condensed, JetBrains_Mono } from "next/font/google";
 import OperationalToast from "@/components/shared/OperationalToast";
+import { ClientWrapper } from "@/components/ClientWrapper";
 import "./globals.css";
 
 const barlow = Barlow({
@@ -38,7 +39,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col antialiased" suppressHydrationWarning>
         <OperationalToast />
-        {children}
+        <ClientWrapper>{children}</ClientWrapper>
       </body>
     </html>
   );

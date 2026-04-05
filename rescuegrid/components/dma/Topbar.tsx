@@ -144,7 +144,7 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
             key={tab.href}
             href={tab.href}
             className={`
-              px-3 py-1 font-mono text-[11px] uppercase tracking-[0.15em] transition-colors relative
+              px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.15em] transition-colors relative
               ${isActive(tab.href) ? "text-orange" : "text-dim hover:text-ink"}
             `}
           >

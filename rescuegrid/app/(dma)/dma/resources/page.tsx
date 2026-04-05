@@ -12,6 +12,7 @@ import ResourceAllocationList from "@/components/dma/resources/ResourceAllocatio
 import Button from "@/components/ui/Button";
 import { useRealtimeSubscription } from "@/lib/realtime";
 import Topbar from "@/components/dma/Topbar";
+import { useAIAssistant } from "@/components/dma/AIAssistantProvider";
 
 interface Resource {
   id: string;
@@ -35,6 +36,7 @@ export default function ResourcesPage() {
   const [showAllocateModal, setShowAllocateModal] = useState(false);
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [allocationFilterId, setAllocationFilterId] = useState<string | undefined>();
+  const { isOpen: aiDrawerOpen, toggle: toggleAI } = useAIAssistant();
 
   const loadResources = useCallback(async () => {
     try {
@@ -123,7 +125,7 @@ export default function ResourcesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Topbar loginTime={loginTime} />
+      <Topbar loginTime={loginTime} aiAssistantOpen={aiDrawerOpen} onToggleAI={toggleAI} />
       <div className="pt-[52px]">
         <div className="border-b border-gray-200 bg-white">
           <div className="px-6 py-4 flex justify-between items-center">
