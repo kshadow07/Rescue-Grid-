@@ -20,6 +20,25 @@ CREATE TABLE public.assignment (
   CONSTRAINT assignment_assigned_to_taskforce_fkey FOREIGN KEY (assigned_to_taskforce) REFERENCES public.task_force(id),
   CONSTRAINT assignment_victim_report_id_fkey FOREIGN KEY (victim_report_id) REFERENCES public.victim_report(id)
 );
+CREATE TABLE public.chat_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL,
+  role text NOT NULL CHECK (role = ANY (ARRAY['user'::text, 'assistant'::text, 'system'::text, 'tool'::text])),
+  content text NOT NULL,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT chat_messages_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_messages_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.chat_sessions(id)
+);
+CREATE TABLE public.chat_sessions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text DEFAULT 'New Disaster Briefing'::text,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT chat_sessions_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_sessions_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
+);
 CREATE TABLE public.message (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   content text NOT NULL,
@@ -99,6 +118,8 @@ CREATE TABLE public.victim_report (
   urgency text DEFAULT 'moderate'::text,
   status text DEFAULT 'open'::text,
   created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  accuracy double precision,
   CONSTRAINT victim_report_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.volunteer (
@@ -114,5 +135,6 @@ CREATE TABLE public.volunteer (
   push_token text,
   last_seen timestamp with time zone,
   auth_id uuid UNIQUE,
+  accuracy double precision,
   CONSTRAINT volunteer_pkey PRIMARY KEY (id)
 );

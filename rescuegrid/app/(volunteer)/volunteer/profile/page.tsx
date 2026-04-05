@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import Button from '@/components/ui/Button';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { SKILL_OPTIONS, EQUIPMENT_OPTIONS, parseSkills } from '@/lib/skills';
 
 interface Volunteer {
   id: string;
@@ -184,6 +185,24 @@ export default function VolunteerProfilePage() {
     }
     setEditMode(false);
     setSaveError('');
+  };
+
+  const toggleSkill = (skill: string) => {
+    const current = parseSkills(editSkills);
+    if (current.includes(skill)) {
+      setEditSkills(current.filter(s => s !== skill).join(", "));
+    } else {
+      setEditSkills([...current, skill].join(", "));
+    }
+  };
+
+  const toggleEquipment = (eq: string) => {
+    const current = parseSkills(editEquipment);
+    if (current.includes(eq)) {
+      setEditEquipment(current.filter(e => e !== eq).join(", "));
+    } else {
+      setEditEquipment([...current, eq].join(", "));
+    }
   };
 
   const getTypeLabel = (type: string) => {
