@@ -6,7 +6,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
-import Topbar from "@/components/dma/Topbar";
 import CreateAssignmentModal from "@/components/dma/CreateAssignmentModal";
 
 interface Assignment {
@@ -30,7 +29,6 @@ interface Assignment {
 
 export default function AssignmentsPage() {
   const router = useRouter();
-  const [loginTime] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -122,8 +120,6 @@ export default function AssignmentsPage() {
 
   return (
     <div className="min-h-screen bg-void">
-      <Topbar loginTime={loginTime} />
-
       <div className="pt-[52px] p-6 max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
