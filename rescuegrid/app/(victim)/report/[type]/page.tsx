@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -25,6 +25,9 @@ const SITUATION_PLACEHOLDERS: Record<string, string> = {
   missing: "e.g., 1 child missing near riverbank",
 };
 
+// Default location (India center)
+const DEFAULT_LOCATION = { lng: 78.9629, lat: 20.5937, zoom: 4 };
+
 export default function ReportTypePage() {
   const router = useRouter();
   const params = useParams();
@@ -34,6 +37,7 @@ export default function ReportTypePage() {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const mapInitializedRef = useRef(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
@@ -46,10 +50,16 @@ export default function ReportTypePage() {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
 
+  // Location search with autocomplete
+  const [locationQuery, setLocationQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
   const reverseGeocode = async (lng: number, lat: number) => {
     try {
       const res = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&types=place,district,region`
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&types=place,district,region,locality,neighborhood`
       );
       const data = await res.json();
       if (data.features && data.features.length > 0) {
@@ -57,14 +67,92 @@ export default function ReportTypePage() {
         const district =
           place.context?.find((c: { id: string }) => c.id.startsWith("district"))?.text || "";
         const city = place.text || "";
-        setPlaceName(district ? `${city}, ${district}` : city);
+        const locationName = district ? `${city}, ${district}` : city;
+        setPlaceName(locationName);
+        setLocationQuery(locationName);
       }
     } catch {
-      setPlaceName("Location detected");
+      setPlaceName("Location selected");
     }
   };
 
-  const initMap = (lng: number, lat: number) => {
+  // Fetch location suggestions from Mapbox
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      // Bias search to India (approximate bbox)
+      const indiaBbox = "68.0,6.0,97.0,37.0";
+      const res = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&limit=5&bbox=${indiaBbox}&types=place,district,region,locality,neighborhood,address`
+      );
+      const data = await res.json();
+      setSuggestions(data.features || []);
+      setShowSuggestions(true);
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (locationQuery && locationQuery !== placeName) {
+        fetchSuggestions(locationQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [locationQuery, fetchSuggestions, placeName]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectSuggestion = (place: any) => {
+    const newLng = place.center[0];
+    const newLat = place.center[1];
+    setLocationQuery(place.place_name);
+    setPlaceName(place.place_name);
+    setLng(newLng);
+    setLat(newLat);
+    setAccuracy(null);
+    setShowSuggestions(false);
+    setSuggestions([]);
+
+    // Update map
+    if (mapRef.current) {
+      mapRef.current.flyTo({ center: [newLng, newLat], zoom: 14 });
+      if (markerRef.current) {
+        markerRef.current.setLngLat([newLng, newLat]);
+      } else {
+        const marker = new mapboxgl.Marker({ color: "#FF6B2B", draggable: true })
+          .setLngLat([newLng, newLat])
+          .addTo(mapRef.current);
+        marker.on("dragend", () => {
+          const m = marker.getLngLat();
+          setLng(m.lng);
+          setLat(m.lat);
+          reverseGeocode(m.lng, m.lat);
+        });
+        markerRef.current = marker;
+      }
+    }
+  };
+
+  const initMap = (lng: number, lat: number, zoom: number = 14) => {
     if (!mapContainerRef.current || mapInitializedRef.current) return;
     mapInitializedRef.current = true;
 
@@ -73,7 +161,7 @@ export default function ReportTypePage() {
       container: mapContainerRef.current,
       style: "mapbox://styles/mapbox/streets-v12",
       center: [lng, lat],
-      zoom: 14,
+      zoom: zoom,
     });
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
@@ -81,18 +169,21 @@ export default function ReportTypePage() {
     map.on("load", () => {
       mapRef.current = map;
 
-      const marker = new mapboxgl.Marker({ color: "#FF6B2B", draggable: true })
-        .setLngLat([lng, lat])
-        .addTo(map);
+      // Only add marker if we have a specific location
+      if (lat !== DEFAULT_LOCATION.lat || lng !== DEFAULT_LOCATION.lng) {
+        const marker = new mapboxgl.Marker({ color: "#FF6B2B", draggable: true })
+          .setLngLat([lng, lat])
+          .addTo(map);
 
-      marker.on("dragend", () => {
-        const m = marker.getLngLat();
-        setLng(m.lng);
-        setLat(m.lat);
-        reverseGeocode(m.lng, m.lat);
-      });
+        marker.on("dragend", () => {
+          const m = marker.getLngLat();
+          setLng(m.lng);
+          setLat(m.lat);
+          reverseGeocode(m.lng, m.lat);
+        });
 
-      markerRef.current = marker;
+        markerRef.current = marker;
+      }
     });
 
     map.on("click", (e) => {
@@ -102,6 +193,17 @@ export default function ReportTypePage() {
       setLat(newLat);
       if (markerRef.current) {
         markerRef.current.setLngLat([newLng, newLat]);
+      } else {
+        const marker = new mapboxgl.Marker({ color: "#FF6B2B", draggable: true })
+          .setLngLat([newLng, newLat])
+          .addTo(map);
+        marker.on("dragend", () => {
+          const m = marker.getLngLat();
+          setLng(m.lng);
+          setLat(m.lat);
+          reverseGeocode(m.lng, m.lat);
+        });
+        markerRef.current = marker;
       }
       reverseGeocode(newLng, newLat);
     });
@@ -113,6 +215,17 @@ export default function ReportTypePage() {
     }
     if (markerRef.current) {
       markerRef.current.setLngLat([lng, lat]);
+    } else if (mapRef.current) {
+      const marker = new mapboxgl.Marker({ color: "#FF6B2B", draggable: true })
+        .setLngLat([lng, lat])
+        .addTo(mapRef.current);
+      marker.on("dragend", () => {
+        const m = marker.getLngLat();
+        setLng(m.lng);
+        setLat(m.lat);
+        reverseGeocode(m.lng, m.lat);
+      });
+      markerRef.current = marker;
     }
     setLng(lng);
     setLat(lat);
@@ -121,7 +234,7 @@ export default function ReportTypePage() {
 
   const requestLocation = () => {
     if (!navigator.geolocation) {
-      setError("Geolocation not supported by this browser");
+      setError("Geolocation not supported. Please type your location below.");
       return;
     }
 
@@ -143,26 +256,49 @@ export default function ReportTypePage() {
         }
       },
       (err) => {
+        let errorMsg = "Could not get GPS location. Please type your location below.";
         if (err.code === 1) {
-          setError("Location permission denied. Please enable in browser settings.");
+          errorMsg = "GPS permission denied. Please type your location below.";
         } else if (err.code === 2) {
-          setError("GPS unavailable. Please enable location services.");
-        } else {
-          setError("Location request timed out. Try again.");
+          errorMsg = "GPS unavailable. Please type your location below.";
         }
+        setError(errorMsg);
         setLocating(false);
-        setPlaceName("Tap map to set location");
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        enableHighAccuracy: false, // Faster response
+        timeout: 8000,
+        maximumAge: 60000, // Allow cached location
       }
     );
   };
 
+  // Initialize map with default location immediately (don't wait for GPS)
   useEffect(() => {
-    requestLocation();
+    // Try to get cached/cached location first for faster startup
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { longitude, latitude } = pos.coords;
+          setLng(longitude);
+          setLat(latitude);
+          reverseGeocode(longitude, latitude);
+          initMap(longitude, latitude, 14);
+        },
+        () => {
+          // Fallback to default location
+          initMap(DEFAULT_LOCATION.lng, DEFAULT_LOCATION.lat, DEFAULT_LOCATION.zoom);
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 3000, // Quick timeout - if it takes too long, use default
+          maximumAge: 300000, // Accept 5 min old cached location
+        }
+      );
+    } else {
+      initMap(DEFAULT_LOCATION.lng, DEFAULT_LOCATION.lat, DEFAULT_LOCATION.zoom);
+    }
+
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
@@ -238,19 +374,72 @@ export default function ReportTypePage() {
       </div>
 
       <div className="flex-1 px-4 pt-4 pb-24 space-y-4">
+        {/* Location Search with Autocomplete */}
+        <div ref={suggestionsRef} className="relative">
+          <label className="font-mono text-xs text-orange uppercase tracking-[0.2em] block mb-1.5">
+            Location *
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={locationQuery}
+              onChange={(e) => setLocationQuery(e.target.value)}
+              onFocus={() => {
+                if (suggestions.length > 0) setShowSuggestions(true);
+              }}
+              placeholder="Type your location (e.g., Mumbai, Delhi...)"
+              className="w-full px-3 py-3 pr-10 bg-gray-50 border border-gray-200 rounded-sm font-body text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
+            />
+            {isSearching && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <svg className="animate-spin w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              </div>
+            )}
+          </div>
+
+          {/* Autocomplete suggestions */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-sm shadow-lg max-h-[200px] overflow-y-auto">
+              {suggestions.map((place, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSelectSuggestion(place)}
+                  className="w-full px-3 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                >
+                  <p className="font-body text-sm text-gray-900">{place.place_name}</p>
+                  <p className="font-mono text-[10px] text-gray-400">
+                    {place.place_type?.[0] || "Location"}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <p className="font-mono text-[10px] text-gray-400 mt-1">
+            {lat && lng
+              ? `📍 ${placeName || "Location selected"}`
+              : "Search your location or use GPS below"}
+          </p>
+        </div>
+
+        {/* Map */}
         <div>
           <div
             ref={mapContainerRef}
             className="w-full h-[160px] rounded overflow-hidden border border-gray-200"
           />
           <div className="mt-2 flex items-center justify-between">
-            <p className="font-mono text-[11px] text-gray-400 uppercase tracking-wide">
-              📍 {placeName || (locating ? "Getting location..." : "Tap map to set location")}
+            <p className="font-mono text-[10px] text-gray-400">
+              {locating
+                ? "Getting GPS location..."
+                : "Tap map to adjust location"}
             </p>
             <button
               onClick={requestLocation}
               disabled={locating}
-              className="flex items-center gap-1 font-mono text-[10px] text-gray-400 uppercase tracking-[0.1em] hover:text-orange transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 font-mono text-[10px] text-orange uppercase tracking-[0.1em] hover:text-orange-600 transition-colors disabled:opacity-50"
             >
               <svg
                 width="12"
@@ -261,13 +450,13 @@ export default function ReportTypePage() {
                 strokeWidth="2"
                 className={locating ? "animate-spin" : ""}
               >
-                <path d="M1 4v6h6M23 20v-6h-6" />
-                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2zm0 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12z" />
+                <circle cx="12" cy="12" r="1" fill="currentColor" />
               </svg>
-              {locating ? "Locating..." : "Use current location"}
+              {locating ? "Locating..." : "Use GPS"}
             </button>
           </div>
-          {error && !locating && (
+          {error && (
             <p className="font-mono text-[10px] text-amber-600 mt-1">{error}</p>
           )}
         </div>
