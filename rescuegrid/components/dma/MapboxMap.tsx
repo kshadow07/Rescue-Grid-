@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import Map, { Marker, Popup, NavigationControl, ScaleControl, Source, Layer } from "react-map-gl/mapbox";
 import { VolunteerMapLayer } from "./VolunteerMapLayer";
 import mapboxgl from "mapbox-gl";
@@ -379,13 +379,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
   const [hoveredVolunteer, setHoveredVolunteer] = useState<Volunteer | null>(null);
   const [hoveredPOI, setHoveredPOI] = useState<POIPlace | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ lng: number; lat: number } | null>(null);
-  const [volunteersVersion, setVolunteersVersion] = useState(0);
   const [currentZoom, setCurrentZoom] = useState(10);
-
-  // Sync version state with hook data for Mapbox reactivity
-  useEffect(() => {
-    setVolunteersVersion(v => v + 1);
-  }, [volunteers, victimReports]);
 
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const filtersRef = useRef(filters);
@@ -706,6 +700,31 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
         mapStyle={MAP_STYLES[mapStyle]}
         onLoad={() => setMapLoaded(true)}
         onZoomEnd={(e) => setCurrentZoom(Math.round(e.viewState.zoom))}
+        interactiveLayerIds={layers.volunteers ? ['volunteers-unclustered'] : undefined}
+        onMouseMove={(e) => {
+          if (!layers.volunteers) return;
+          const features = e.features || [];
+          const volunteerFeature = features.find(f => f.layer?.id === 'volunteers-unclustered');
+          if (volunteerFeature?.properties?.id) {
+            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+            const volunteer = volunteers.find(v => v.id === volunteerFeature.properties!.id);
+            if (volunteer) {
+              setHoveredVolunteer(volunteer);
+              setPopupPosition({ lng: volunteer.longitude, lat: volunteer.latitude });
+            }
+          } else if (hoveredVolunteer && !volunteerFeature) {
+            hoverTimeoutRef.current = setTimeout(() => {
+              setHoveredVolunteer(null);
+            }, 150);
+          }
+        }}
+        onMouseLeave={() => {
+          if (hoveredVolunteer) {
+            hoverTimeoutRef.current = setTimeout(() => {
+              setHoveredVolunteer(null);
+            }, 150);
+          }
+        }}
       >
         <NavigationControl position="bottom-right" />
         <ScaleControl />
@@ -736,36 +755,24 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
         ))}
 
         {layers.volunteers && (
-          currentZoom >= 12 ? (
-            volunteersRef.current.map((vol) => (
-              <Marker
-                key={`${vol.id}-${volunteersVersion}`}
-                longitude={vol.longitude}
-                latitude={vol.latitude}
-                anchor="bottom"
-              >
-                <VolunteerMarker
-                  volunteer={vol}
-                  onClick={() => handleVolunteerClick(vol)}
-                  onMouseEnter={() => {
-                    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-                    setHoveredVolunteer(vol);
-                    setPopupPosition({ lng: vol.longitude, lat: vol.latitude });
-                  }}
-                  onMouseLeave={() => {
-                    hoverTimeoutRef.current = setTimeout(() => {
-                      setHoveredVolunteer(null);
-                    }, 150);
-                  }}
-                />
-              </Marker>
-            ))
-          ) : (
-            <VolunteerMapLayer map={mapRef.current} onVolunteerSelect={(v) => {
-              const vol = volunteersRef.current.find((vol) => vol.id === v.id);
-              if (vol) handleVolunteerClick(vol);
-            }} />
-          )
+          <VolunteerMapLayer 
+            volunteers={volunteers} 
+            onVolunteerClick={handleVolunteerClick}
+            onClusterClick={(clusterId, coordinates) => {
+              const source = mapRef.current?.getSource('volunteers') as mapboxgl.GeoJSONSource;
+              if (source) {
+                source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+                  if (!err && zoom !== undefined && mapRef.current) {
+                    mapRef.current.flyTo({
+                      center: coordinates,
+                      zoom: zoom + 0.5,
+                      duration: 500
+                    });
+                  }
+                });
+              }
+            }}
+          />
         )}
 
         {layers.hospitals && poiData.hospitals.map((poi) => (
