@@ -3,6 +3,10 @@
 Resilient Orchestration Platform for Disaster Response.
 Asynchronous synchronization of Victims, Volunteers, and DMA in low connectivity, high-latency environments.
 
+Live Link : https://rescue-grid.vercel.app/ (Victim PWA)
+Live Link : https://rescue-grid.vercel.app/dma/dashboard (DMA Dashboard Secured by auth requires owener permission to view)
+Live Link : https://rescue-grid.vercel.app/volunteer/login (only registered phone number by the owner can create and login )
+
 
 # BANNER
 
