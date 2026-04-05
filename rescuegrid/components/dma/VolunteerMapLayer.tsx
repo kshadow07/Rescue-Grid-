@@ -45,6 +45,25 @@ const clusterCountLayer: LayerProps = {
   },
 }
 
+const volunteerLabelLayer: LayerProps = {
+  id: 'volunteers-label',
+  type: 'symbol',
+  source: 'volunteers',
+  filter: ['!', ['has', 'point_count']],
+  layout: {
+    'text-field': 'V',
+    'text-font': ['DIN Offc Pro Bold', 'Arial Unicode MS Bold'],
+    'text-size': 12,
+    'text-allow-overlap': true,
+    'text-ignore-placement': false,
+  },
+  paint: {
+    'text-color': '#ffffff',
+    'text-halo-color': 'rgba(0,0,0,0.3)',
+    'text-halo-width': 1,
+  },
+}
+
 const unclusteredLayer: LayerProps = {
   id: 'volunteers-unclustered',
   type: 'circle',
@@ -59,17 +78,17 @@ const unclusteredLayer: LayerProps = {
     ] as any,
     'circle-radius': [
       'case',
-      ['>=', ['get', 'tier'], 4], 10,
-      ['==', ['get', 'tier'], 3], 8,
-      ['==', ['get', 'tier'], 2], 7,
-      6
+      ['>=', ['get', 'tier'], 4], 18,
+      ['==', ['get', 'tier'], 3], 15,
+      ['==', ['get', 'tier'], 2], 13,
+      11
     ] as any,
-    'circle-stroke-width': 2,
+    'circle-stroke-width': 3,
     'circle-stroke-color': '#ffffff',
     'circle-opacity': [
       'case',
       ['==', ['get', 'status'], 'active'], 1.0,
-      0.6
+      0.75
     ] as any,
   },
 }
@@ -136,6 +155,7 @@ export function VolunteerMapLayer({ volunteers, onVolunteerClick, onClusterClick
         {...unclusteredLayer}
         onClick={handleClick}
       />
+      <Layer {...volunteerLabelLayer} />
     </Source>
   )
 }

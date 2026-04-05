@@ -158,7 +158,7 @@ function VolunteerMarker({
           style={{ backgroundColor: statusColor }}
         />
         <span className="relative text-white font-bold text-sm">
-          {volunteer.name.charAt(0)}
+          {volunteer.name?.charAt(0) || '?'}
         </span>
         <div 
           className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
@@ -222,8 +222,10 @@ function POIMarker({
 
 export default function MapboxMap({ filters, layers, onReportSelect, selectedReportId, dmaLocation }: MapboxMapProps) {
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const [currentZoom, setCurrentZoom] = useState(10);
+  const [mapBbox, setMapBbox] = useState<string | undefined>(undefined);
   const { needs: victimReports } = useNeeds();
-  const { volunteers } = useVolunteers();
+  const { volunteers } = useVolunteers({ bbox: mapBbox, zoom: currentZoom });
   const { assignments } = useAssignments();
   const { members: taskForceMembers } = useTaskForceMemberLocations();
   
@@ -379,7 +381,6 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
   const [hoveredVolunteer, setHoveredVolunteer] = useState<Volunteer | null>(null);
   const [hoveredPOI, setHoveredPOI] = useState<POIPlace | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ lng: number; lat: number } | null>(null);
-  const [currentZoom, setCurrentZoom] = useState(10);
 
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const filtersRef = useRef(filters);
@@ -451,8 +452,14 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
   const createVolunteerPopupContent = (vol: Volunteer, isDestination = false, distanceInfo?: { distance: string; duration: string }) => {
     const statusColor = getVolunteerStatusColor(vol.status);
     const statusLabel = getVolunteerStatusLabel(vol.status);
-    const skills = vol.skills ? vol.skills.split(",").map((s: string) => s.trim()) : [];
-    const equipment = vol.equipment ? vol.equipment.split(",").map((s: string) => s.trim()) : [];
+    const skills = Array.isArray(vol.skills) 
+      ? vol.skills.map((s: string | number) => String(s).trim())
+      : typeof vol.skills === 'string' 
+        ? vol.skills.split(",").map((s: string) => s.trim()) 
+        : [];
+    const equipment = typeof vol.equipment === 'string' 
+      ? vol.equipment.split(",").map((s: string) => s.trim()) 
+      : [];
 
     return (
       <div style={{ background: "#13161B", minWidth: 240, borderRadius: 4, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
@@ -464,10 +471,10 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
         <div style={{ padding: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
             <div style={{ width: 44, height: 44, background: "#1A1E25", border: `2px solid ${statusColor}`, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18, color: "#F0EDE8" }}>
-              {vol.name.charAt(0)}
+              {vol.name?.charAt(0) || '?'}
             </div>
             <div>
-              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 600, color: "#F0EDE8" }}>{vol.name}</div>
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 600, color: "#F0EDE8" }}>{vol.name || 'Unknown'}</div>
               <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7280", textTransform: "uppercase" }}>{vol.type}</div>
             </div>
           </div>
@@ -658,12 +665,18 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
     }
   }, []);
 
-  // Real-time volunteer subscription is now handled by hooks
+  const initialBoundsFitted = useRef(false);
+
   useEffect(() => {
-    if (victimReports.length > 0 || volunteers.length > 0) {
-      setTimeout(() => fitBoundsToDataRef.current?.(), 500);
+    if (mapLoaded && !initialBoundsFitted.current) {
+      if (victimReports.length > 0 || volunteers.length > 0) {
+        setTimeout(() => {
+          fitBoundsToDataRef.current?.();
+          initialBoundsFitted.current = true;
+        }, 500);
+      }
     }
-  }, [victimReports.length, volunteers.length]);
+  }, [mapLoaded, victimReports.length, volunteers.length]);
 
   useEffect(() => {
     if (dmaLocation) {
@@ -698,8 +711,24 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
         }}
         style={{ width: "100%", height: "100%" }}
         mapStyle={MAP_STYLES[mapStyle]}
-        onLoad={() => setMapLoaded(true)}
-        onZoomEnd={(e) => setCurrentZoom(Math.round(e.viewState.zoom))}
+        onLoad={() => {
+          setMapLoaded(true);
+          const map = mapRef.current;
+          if (map) {
+            const bounds = map.getBounds();
+            const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+            setMapBbox(bbox);
+          }
+        }}
+        onZoomEnd={(e) => {
+          setCurrentZoom(Math.round(e.viewState.zoom));
+          const map = mapRef.current;
+          if (map) {
+            const bounds = map.getBounds();
+            const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+            setMapBbox(bbox);
+          }
+        }}
         interactiveLayerIds={layers.volunteers ? ['volunteers-unclustered'] : undefined}
         onMouseMove={(e) => {
           if (!layers.volunteers) return;

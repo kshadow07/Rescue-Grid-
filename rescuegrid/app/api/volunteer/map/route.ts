@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 
+const DISTRICT_BOUNDS = {
+  lat_min: 23.62, lat_max: 23.92,
+  lng_min: 86.20, lng_max: 86.58,
+}
+
 export async function GET(req: NextRequest) {
   const supabase = createServiceClient()
   const { searchParams } = new URL(req.url)
@@ -13,9 +18,21 @@ export async function GET(req: NextRequest) {
   let minLng = lng - 1, maxLng = lng + 1
 
   if (bbox) {
-    const [minLo, minLa, maxLo, maxLa] = bbox.split(',').map(parseFloat)
-    minLng = minLo; minLat = minLa; maxLng = maxLo; maxLat = maxLa
+    const [bMinLng, bMinLat, bMaxLng, bMaxLat] = bbox.split(',').map(parseFloat)
+    minLat = Math.max(bMinLat, DISTRICT_BOUNDS.lat_min)
+    maxLat = Math.min(bMaxLat, DISTRICT_BOUNDS.lat_max)
+    minLng = Math.max(bMinLng, DISTRICT_BOUNDS.lng_min)
+    maxLng = Math.min(bMaxLng, DISTRICT_BOUNDS.lng_max)
+  } else {
+    minLat = Math.max(minLat, DISTRICT_BOUNDS.lat_min)
+    maxLat = Math.min(maxLat, DISTRICT_BOUNDS.lat_max)
+    minLng = Math.max(minLng, DISTRICT_BOUNDS.lng_min)
+    maxLng = Math.min(maxLng, DISTRICT_BOUNDS.lng_max)
   }
+
+  const statusFilter = zoom >= 12 
+    ? { in: 'active,standby' } 
+    : { in: 'active,standby,on-mission' }
 
   if (zoom >= 12) {
     const { data: volunteers } = await supabase
@@ -29,7 +46,7 @@ export async function GET(req: NextRequest) {
         status,
         volunteer_skills(skill_id)
       `)
-      .eq('status', 'active')
+      .in('status', ['active', 'standby'])
       .gte('latitude', minLat)
       .lte('latitude', maxLat)
       .gte('longitude', minLng)
@@ -54,12 +71,14 @@ export async function GET(req: NextRequest) {
     .from('volunteer')
     .select(`
       id,
+      name,
       latitude,
       longitude,
       tier,
+      status,
       volunteer_skills(skill_definitions(category:skill_categories(code)))
     `)
-    .eq('status', 'active')
+    .in('status', ['active', 'standby', 'on-mission'])
     .gte('latitude', minLat)
     .lte('latitude', maxLat)
     .gte('longitude', minLng)
@@ -68,9 +87,11 @@ export async function GET(req: NextRequest) {
 
   const transformed = volunteers?.map((v: any) => ({
     id: v.id,
+    name: v.name,
     latitude: v.latitude,
     longitude: v.longitude,
     tier: v.tier,
+    status: v.status,
     primary_category: v.volunteer_skills?.[0]?.skill_definitions?.category?.code || 'UNKNOWN'
   }))
 

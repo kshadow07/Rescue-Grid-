@@ -18,7 +18,12 @@ export interface Volunteer {
   push_token: string | null;
 }
 
-export function useVolunteers() {
+interface UseVolunteersOptions {
+  bbox?: string;
+  zoom?: number;
+}
+
+export function useVolunteers(options?: UseVolunteersOptions) {
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,16 +31,23 @@ export function useVolunteers() {
   const fetchVolunteers = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/volunteer/locations');
+      let url = '/api/volunteer/locations';
+      if (options?.bbox) {
+        const params = new URLSearchParams({ bbox: options.bbox });
+        if (options.zoom !== undefined) params.set('zoom', options.zoom.toString());
+        url = `/api/volunteer/map?${params.toString()}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch volunteers');
       const data = await res.json();
-      setVolunteers(Array.isArray(data) ? data : []);
+      const volunteerData = data.data || data;
+      setVolunteers(Array.isArray(volunteerData) ? volunteerData : []);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [options?.bbox, options?.zoom]);
 
   useEffect(() => {
     fetchVolunteers();
