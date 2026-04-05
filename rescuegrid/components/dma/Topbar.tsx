@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import { AIAssistantButton } from "./AIAssistantButton";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -15,6 +16,8 @@ interface LiveCounters {
 
 interface TopbarProps {
   loginTime: Date;
+  aiAssistantOpen?: boolean;
+  onToggleAI?: () => void;
 }
 
 const NAV_TABS = [
@@ -25,7 +28,7 @@ const NAV_TABS = [
   { label: "Messages", href: "/dma/messages" },
 ];
 
-export default function Topbar({ loginTime }: TopbarProps) {
+export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: TopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
@@ -152,6 +155,13 @@ export default function Topbar({ loginTime }: TopbarProps) {
           </Link>
         ))}
       </nav>
+
+      <div className="h-4 w-px bg-border-dim mx-1" />
+
+      <AIAssistantButton 
+        isOpen={aiAssistantOpen || false}
+        onClick={onToggleAI || (() => {})}
+      />
 
       <div className="flex-1" />
 
