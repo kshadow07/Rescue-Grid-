@@ -9,6 +9,18 @@ export async function DELETE(
     const supabase = createServiceClient();
     const { id } = await params;
 
+    // First delete any allocations for this resource (cascade delete)
+    const { error: allocationError } = await supabase
+      .from("resource_allocation")
+      .delete()
+      .eq("resource_id", id);
+
+    if (allocationError) {
+      console.error("Delete resource allocations error:", allocationError);
+      return NextResponse.json({ error: allocationError.message }, { status: 400 });
+    }
+
+    // Then delete the resource
     const { error } = await supabase
       .from("resource")
       .delete()

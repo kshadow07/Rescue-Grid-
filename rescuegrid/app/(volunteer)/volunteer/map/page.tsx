@@ -139,7 +139,7 @@ export default function VolunteerMapPage() {
 
     map.current = new window.mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
+      style: 'mapbox://styles/mapbox/streets-v12',
       center: [centerLng, centerLat],
       zoom: 13,
     });

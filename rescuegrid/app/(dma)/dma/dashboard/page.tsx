@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Topbar from "@/components/dma/Topbar";
 import LeftSidebar from "@/components/dma/LeftSidebar";
 import RightSidebar from "@/components/dma/RightSidebar";
 import MapboxMap from "@/components/dma/MapboxMap";
@@ -28,10 +27,9 @@ interface Resource {
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loginTime] = useState(() => new Date());
   const [authLoading, setAuthLoading] = useState(true);
   const [dmaLocation, setDmaLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const { isOpen: aiDrawerOpen, open: openAI, close: closeAI, toggle: toggleAI } = useAIAssistant();
+  const { open: openAI, toggle: toggleAI } = useAIAssistant();
 
   const [filters, setFilters] = useState({
     situations: [] as string[],
@@ -184,12 +182,6 @@ function DashboardContent() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-white overflow-hidden">
-      <Topbar 
-        loginTime={loginTime} 
-        aiAssistantOpen={aiDrawerOpen}
-        onToggleAI={toggleAI}
-      />
-
       <div className="flex flex-1 mt-[52px] overflow-hidden">
         <LeftSidebar
           filters={filters}

@@ -16,9 +16,9 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
 // Map styles
 const MAP_STYLES = {
-  dark: "mapbox://styles/mapbox/dark-v11",
+  streets: "mapbox://styles/mapbox/streets-v12",
   satellite: "mapbox://styles/mapbox/satellite-streets-v12",
-  navigation: "mapbox://styles/mapbox/navigation-night-v1"
+  navigation: "mapbox://styles/mapbox/navigation-day-v1"
 };
 
 const SITUATION_STYLES: Record<string, { color: string; label: string }> = {
@@ -366,7 +366,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
   const fitBoundsToDataRef = useRef<(() => void) | null>(null);
   
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [mapStyle, setMapStyleState] = useState<"dark" | "satellite" | "navigation">("dark");
+  const [mapStyle, setMapStyleState] = useState<"streets" | "satellite" | "navigation">("streets");
   const [selectionMode, setSelectionMode] = useState<"normal" | "destination">("normal");
   const [originReport, setOriginReport] = useState<VictimReport | null>(null);
   const [destinationVolunteer, setDestinationVolunteer] = useState<Volunteer | null>(null);
@@ -910,11 +910,11 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
       )}
 
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-        <button 
-          onClick={() => setMapStyleState(mapStyle === "dark" ? "satellite" : mapStyle === "satellite" ? "navigation" : "dark")}
+        <button
+          onClick={() => setMapStyleState(mapStyle === "streets" ? "satellite" : mapStyle === "satellite" ? "navigation" : "streets")}
           className="px-3 py-1.5 bg-white/95 backdrop-blur-sm border border-gray-200 font-mono text-[10px] font-semibold text-gray-600 uppercase tracking-wider hover:text-orange hover:border-orange/50 transition-color-snappy rounded-sm shadow-sm"
         >
-          {mapStyle === "dark" ? "🛰️ SATELLITE" : mapStyle === "satellite" ? "🧭 NAV" : "🌑 DARK"}
+          {mapStyle === "streets" ? "🛰️ SATELLITE" : mapStyle === "satellite" ? "🧭 NAV" : "🗺️ STREETS"}
         </button>
         <button 
           onClick={() => fitBoundsToDataRef.current?.()}

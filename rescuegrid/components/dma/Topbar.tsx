@@ -1,18 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import { AIAssistantButton } from "./AIAssistantButton";
-import { createClient } from "@/lib/supabase/client";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-
-interface LiveCounters {
-  critical: number;
-  active: number;
-  vols: number;
-}
+import { useCounters } from "./CountersProvider";
 
 interface TopbarProps {
   loginTime: Date;
@@ -31,76 +24,8 @@ const NAV_TABS = [
 export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: TopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const [counters, setCounters] = useState<LiveCounters>({ critical: 0, active: 0, vols: 0 });
-  const [loading, setLoading] = useState(true);
+  const { counters, loading } = useCounters();
   const [sessionElapsed, setSessionElapsed] = useState("00:00:00");
-
-  const fetchCounters = useCallback(async () => {
-    try {
-      const res = await fetch("/api/dma/counters");
-      if (res.ok) {
-        const data = await res.json();
-        setCounters(data);
-      }
-    } catch {
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!supabaseRef.current) {
-      supabaseRef.current = createClient();
-    }
-    const supabase = supabaseRef.current;
-    
-    fetchCounters();
-
-    channelRef.current = supabase
-      .channel(`dma-topbar-${Date.now()}`)
-      .on(
-        'postgres_changes' as const,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'victim_report',
-        },
-        () => {
-          fetchCounters();
-        }
-      )
-      .on(
-        'postgres_changes' as const,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'assignment',
-        },
-        () => {
-          fetchCounters();
-        }
-      )
-      .on(
-        'postgres_changes' as const,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'volunteer',
-        },
-        () => {
-          fetchCounters();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      if (channelRef.current && supabaseRef.current) {
-        supabaseRef.current.removeChannel(channelRef.current);
-      }
-    };
-  }, [fetchCounters]);
 
   useEffect(() => {
     const updateTimer = () => {
