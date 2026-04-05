@@ -8,11 +8,19 @@ import Button from '@/components/ui/Button';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { SKILL_OPTIONS, EQUIPMENT_OPTIONS, parseSkills } from '@/lib/skills';
 
+interface SkillCategory {
+  id: number;
+  code: string;
+  name: string;
+  skill_definitions: { id: number; code: string; name: string }[];
+}
+
 interface Volunteer {
   id: string;
   name: string;
   type: string;
   skills: string;
+  skill_ids?: number[];
   equipment: string;
   status: string;
   mobile_no: string;
@@ -44,6 +52,8 @@ export default function VolunteerProfilePage() {
   const [saveError, setSaveError] = useState('');
   const [resources, setResources] = useState<ResourceAllocation[]>([]);
   const [resourcesLoading, setResourcesLoading] = useState(true);
+  const [skillCategories, setSkillCategories] = useState<SkillCategory[]>([]);
+  const [selectedSkillIds, setSelectedSkillIds] = useState<number[]>([]);
   const resourcesChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -55,12 +65,28 @@ export default function VolunteerProfilePage() {
           setVolunteer(data);
           setEditSkills(data.skills || '');
           setEditEquipment(data.equipment || '');
+          if (data.skill_ids && Array.isArray(data.skill_ids)) {
+            setSelectedSkillIds(data.skill_ids);
+          }
         }
       } catch {}
       setLoading(false);
     };
 
     fetchProfile();
+  }, []);
+
+  useEffect(() => {
+    const fetchSkillCategories = async () => {
+      try {
+        const res = await fetch('/api/skills');
+        if (res.ok) {
+          const data = await res.json();
+          setSkillCategories(data);
+        }
+      } catch {}
+    };
+    fetchSkillCategories();
   }, []);
 
   // Fetch resources and subscribe to real-time updates
@@ -159,6 +185,7 @@ export default function VolunteerProfilePage() {
         body: JSON.stringify({
           skills: editSkills,
           equipment: editEquipment,
+          skill_ids: selectedSkillIds,
         }),
       });
 
@@ -182,17 +209,21 @@ export default function VolunteerProfilePage() {
     if (volunteer) {
       setEditSkills(volunteer.skills || '');
       setEditEquipment(volunteer.equipment || '');
+      if (volunteer.skill_ids && Array.isArray(volunteer.skill_ids)) {
+        setSelectedSkillIds(volunteer.skill_ids);
+      } else {
+        setSelectedSkillIds([]);
+      }
     }
     setEditMode(false);
     setSaveError('');
   };
 
-  const toggleSkill = (skill: string) => {
-    const current = parseSkills(editSkills);
-    if (current.includes(skill)) {
-      setEditSkills(current.filter(s => s !== skill).join(", "));
+  const toggleSkill = (skillId: number) => {
+    if (selectedSkillIds.includes(skillId)) {
+      setSelectedSkillIds(selectedSkillIds.filter(id => id !== skillId));
     } else {
-      setEditSkills([...current, skill].join(", "));
+      setSelectedSkillIds([...selectedSkillIds, skillId]);
     }
   };
 
@@ -284,17 +315,52 @@ export default function VolunteerProfilePage() {
         <div className="space-y-3">
           <div>
             <p className="font-mono text-[10px] text-dim uppercase mb-1">SKILLS</p>
-            {editMode ? (
-              <textarea
-                value={editSkills}
-                onChange={(e) => setEditSkills(e.target.value)}
-                placeholder="First Aid, Search and Rescue, CPR..."
-                className="w-full h-20 px-3 py-2 bg-surface-3 border border-border text-ink font-body text-sm resize-none focus:border-orange focus:outline-none"
-              />
+            {!editMode ? (
+              selectedSkillIds.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedSkillIds.map(id => {
+                    for (const cat of skillCategories) {
+                      const skill = cat.skill_definitions.find(s => s.id === id);
+                      if (skill) {
+                        return (
+                          <span key={id} className="px-2 py-1 bg-orange/20 text-orange font-mono text-[10px] uppercase">
+                            {skill.name}
+                          </span>
+                        );
+                      }
+                    }
+                    return null;
+                  })}
+                </div>
+              ) : (
+                <p className="text-ink font-body text-sm">
+                  {volunteer.skills || 'Not specified'}
+                </p>
+              )
             ) : (
-              <p className="text-ink font-body text-sm">
-                {volunteer.skills || 'Not specified'}
-              </p>
+              <div className="space-y-3">
+                {skillCategories.map(cat => (
+                  <div key={cat.id}>
+                    <p className="font-mono text-[9px] text-dim uppercase mb-1.5">{cat.name}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {cat.skill_definitions.map(skill => (
+                        <button
+                          key={skill.id}
+                          type="button"
+                          onClick={() => toggleSkill(skill.id)}
+                          className={`px-2 py-1 font-mono text-[10px] uppercase transition-colors ${
+                            selectedSkillIds.includes(skill.id)
+                              ? 'bg-orange text-void'
+                              : 'bg-surface-3 text-dim hover:text-ink'
+                          }`}
+                        >
+                          {skill.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 

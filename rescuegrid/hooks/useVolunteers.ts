@@ -13,6 +13,7 @@ export interface Volunteer {
   skills: string;
   equipment: string;
   status: string;
+  tier?: number;
   last_seen: string | null;
   push_token: string | null;
 }

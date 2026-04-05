@@ -10,12 +10,15 @@ interface Volunteer {
   type: string;
   status: string;
   skills?: string;
+  skills_ids?: number[];
   equipment?: string;
   latitude?: number;
   longitude?: number;
   distance_km?: number;
   last_seen?: string;
   relevance_score?: number;
+  score?: number;
+  tier?: number;
 }
 
 interface TaskForce {
@@ -154,60 +157,68 @@ export default function CreateAssignmentModal({ linkedReportId, onClose, onCreat
   const searchVolunteers = useCallback(async (query: string, page: number = 0, reset: boolean = true, forTaskForce: boolean = false) => {
     setVolunteerLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (query) params.set("q", query);
       if (latitude && longitude) {
-        params.set("lat", latitude.toString());
-        params.set("lng", longitude.toString());
-        params.set("radius", searchRadius.toString());
-      }
-      params.set("status", volunteerStatusFilter === "all" ? "" : volunteerStatusFilter);
-      if (selectedSkills.length > 0) params.set("skills", selectedSkills.join(","));
-      if (selectedEquipment.length > 0) params.set("equipment", selectedEquipment.join(","));
-      params.set("limit", "50");
-      params.set("offset", (page * 50).toString());
+        const body: any = {
+          latitude,
+          longitude,
+          radius_km: searchRadius,
+          limit: 50,
+        };
+        if (selectedSkills.length > 0) {
+          body.skill_codes = selectedSkills.map(s => s.toLowerCase().replace(/\s+/g, '_'));
+        }
 
-      const res = await fetch(`/api/volunteer/search?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        let results = data.data || [];
-        
-        // Always sort by distance first (if coordinates available), then by other criteria
-        if (latitude && longitude) {
-          results = results.sort((a: Volunteer, b: Volunteer) => {
-            const distA = a.distance_km ?? Infinity;
-            const distB = b.distance_km ?? Infinity;
-            return distA - distB;
-          });
+        const res = await fetch('/api/volunteer/search/scored', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          let results = data.volunteers || [];
+          
+          if (query) {
+            results = results.filter((v: Volunteer) => 
+              v.name.toLowerCase().includes(query.toLowerCase())
+            );
+          }
+          
+          if (reset) {
+            setVolunteerResults(results);
+          } else {
+            setVolunteerResults(prev => [...prev, ...results]);
+          }
+          setVolunteerHasMore(false);
+          setVolunteerTotal(results.length);
         }
-        
-        // For task force, apply relevance scoring on top of distance
-        if (forTaskForce) {
-          results = results.map((v: Volunteer) => ({
-            ...v,
-            relevance_score: calculateRelevanceScore(v, task)
-          })).sort((a: Volunteer, b: Volunteer) => {
-            // Sort by relevance score first, then by distance
-            const scoreDiff = (b.relevance_score || 0) - (a.relevance_score || 0);
-            if (scoreDiff !== 0) return scoreDiff;
-            return (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity);
-          });
+      } else {
+        const params = new URLSearchParams();
+        if (query) params.set("q", query);
+        params.set("status", volunteerStatusFilter === "all" ? "" : volunteerStatusFilter);
+        if (selectedSkills.length > 0) params.set("skills", selectedSkills.join(","));
+        if (selectedEquipment.length > 0) params.set("equipment", selectedEquipment.join(","));
+        params.set("limit", "50");
+        params.set("offset", (page * 50).toString());
+
+        const res = await fetch(`/api/volunteer/search?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (reset) {
+            setVolunteerResults(data.data || []);
+          } else {
+            setVolunteerResults(prev => [...prev, ...data.data || []]);
+          }
+          setVolunteerHasMore(data.hasMore);
+          setVolunteerTotal(data.total || 0);
         }
-        
-        if (reset) {
-          setVolunteerResults(results);
-        } else {
-          setVolunteerResults(prev => [...prev, ...results]);
-        }
-        setVolunteerHasMore(data.hasMore);
-        setVolunteerTotal(data.total || 0);
       }
     } catch (err) {
       console.error("Failed to search volunteers:", err);
     } finally {
       setVolunteerLoading(false);
     }
-  }, [latitude, longitude, searchRadius, volunteerStatusFilter, selectedSkills, selectedEquipment, task]);
+  }, [latitude, longitude, searchRadius, volunteerStatusFilter, selectedSkills, selectedEquipment]);
 
   const calculateRelevanceScore = (volunteer: Volunteer, taskDescription: string): number => {
     let score = 0;

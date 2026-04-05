@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Map, { Marker, Popup, NavigationControl, ScaleControl, Source, Layer } from "react-map-gl/mapbox";
+import { VolunteerMapLayer } from "./VolunteerMapLayer";
 import mapboxgl from "mapbox-gl";
+import type { Map as MapboxMapType } from 'react-map-gl/mapbox';
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MapPin } from "lucide-react";
 import { useNeeds, VictimReport } from "@/hooks/useNeeds";
@@ -378,6 +380,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
   const [hoveredPOI, setHoveredPOI] = useState<POIPlace | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ lng: number; lat: number } | null>(null);
   const [volunteersVersion, setVolunteersVersion] = useState(0);
+  const [currentZoom, setCurrentZoom] = useState(10);
 
   // Sync version state with hook data for Mapbox reactivity
   useEffect(() => {
@@ -702,6 +705,7 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
         style={{ width: "100%", height: "100%" }}
         mapStyle={MAP_STYLES[mapStyle]}
         onLoad={() => setMapLoaded(true)}
+        onZoomEnd={(e) => setCurrentZoom(Math.round(e.viewState.zoom))}
       >
         <NavigationControl position="bottom-right" />
         <ScaleControl />
@@ -731,29 +735,38 @@ export default function MapboxMap({ filters, layers, onReportSelect, selectedRep
           </Marker>
         ))}
 
-        {layers.volunteers && volunteersRef.current.map((vol) => (
-          <Marker
-            key={`${vol.id}-${volunteersVersion}`}
-            longitude={vol.longitude}
-            latitude={vol.latitude}
-            anchor="bottom"
-          >
-            <VolunteerMarker
-              volunteer={vol}
-              onClick={() => handleVolunteerClick(vol)}
-              onMouseEnter={() => {
-                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-                setHoveredVolunteer(vol);
-                setPopupPosition({ lng: vol.longitude, lat: vol.latitude });
-              }}
-              onMouseLeave={() => {
-                hoverTimeoutRef.current = setTimeout(() => {
-                  setHoveredVolunteer(null);
-                }, 150);
-              }}
-            />
-          </Marker>
-        ))}
+        {layers.volunteers && (
+          currentZoom >= 12 ? (
+            volunteersRef.current.map((vol) => (
+              <Marker
+                key={`${vol.id}-${volunteersVersion}`}
+                longitude={vol.longitude}
+                latitude={vol.latitude}
+                anchor="bottom"
+              >
+                <VolunteerMarker
+                  volunteer={vol}
+                  onClick={() => handleVolunteerClick(vol)}
+                  onMouseEnter={() => {
+                    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                    setHoveredVolunteer(vol);
+                    setPopupPosition({ lng: vol.longitude, lat: vol.latitude });
+                  }}
+                  onMouseLeave={() => {
+                    hoverTimeoutRef.current = setTimeout(() => {
+                      setHoveredVolunteer(null);
+                    }, 150);
+                  }}
+                />
+              </Marker>
+            ))
+          ) : (
+            <VolunteerMapLayer map={mapRef.current} onVolunteerSelect={(v) => {
+              const vol = volunteersRef.current.find((vol) => vol.id === v.id);
+              if (vol) handleVolunteerClick(vol);
+            }} />
+          )
+        )}
 
         {layers.hospitals && poiData.hospitals.map((poi) => (
           <Marker

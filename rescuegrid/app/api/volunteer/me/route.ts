@@ -30,7 +30,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    return NextResponse.json(volunteer);
+    const { data: skillRows } = await supabase
+      .from('volunteer_skills')
+      .select('skill_id')
+      .eq('volunteer_id', volunteerId);
+
+    const skill_ids = skillRows?.map(r => r.skill_id) || [];
+
+    return NextResponse.json({ ...volunteer, skill_ids });
   } catch (error) {
     console.error('Error in GET /api/volunteer/me:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
@@ -55,7 +62,7 @@ export async function PATCH(request: Request) {
     const volunteerId = session.volunteer_id;
 
     const body = await request.json();
-    const { skills, equipment } = body;
+    const { skills, equipment, skill_ids } = body;
 
     const updateData: { skills?: string; equipment?: string } = {};
     
@@ -66,23 +73,52 @@ export async function PATCH(request: Request) {
       updateData.equipment = equipment;
     }
 
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    if (skill_ids !== undefined) {
+      await supabase
+        .from('volunteer_skills')
+        .delete()
+        .eq('volunteer_id', volunteerId);
+
+      if (Array.isArray(skill_ids) && skill_ids.length > 0) {
+        const inserts = skill_ids.map((skillId: number) => ({
+          volunteer_id: volunteerId,
+          skill_id: skillId
+        }));
+        await supabase.from('volunteer_skills').insert(inserts);
+      }
     }
 
-    const { data: volunteer, error } = await supabase
-      .from('volunteer')
-      .update(updateData)
-      .eq('id', volunteerId)
-      .select('id, name, mobile_no, type, skills, equipment, status, last_seen')
-      .single();
+    let volunteer = null;
+    if (Object.keys(updateData).length > 0) {
+      const { data, error } = await supabase
+        .from('volunteer')
+        .update(updateData)
+        .eq('id', volunteerId)
+        .select('id, name, mobile_no, type, skills, equipment, status, last_seen')
+        .single();
 
-    if (error) {
-      console.error('Error updating volunteer:', error);
-      return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
+      if (error) {
+        console.error('Error updating volunteer:', error);
+        return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
+      }
+      volunteer = data;
+    } else {
+      const { data, error } = await supabase
+        .from('volunteer')
+        .select('id, name, mobile_no, type, skills, equipment, status, last_seen')
+        .eq('id', volunteerId)
+        .single();
+      volunteer = data;
     }
 
-    return NextResponse.json(volunteer);
+    const { data: skillRows } = await supabase
+      .from('volunteer_skills')
+      .select('skill_id')
+      .eq('volunteer_id', volunteerId);
+
+    const finalSkillIds = skillRows?.map(r => r.skill_id) || [];
+
+    return NextResponse.json({ ...volunteer, skill_ids: finalSkillIds });
   } catch (error) {
     console.error('Error in PATCH /api/volunteer/me:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
