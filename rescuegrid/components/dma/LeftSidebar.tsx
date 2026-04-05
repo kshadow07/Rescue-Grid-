@@ -100,7 +100,7 @@ export default function LeftSidebar({
     <aside className="w-[260px] shrink-0 bg-white border-r border-border-dim overflow-y-auto custom-scrollbar">
       <div className="p-4 space-y-6">
         <section>
-          <h3 className="font-mono text-[11px] font-semibold text-dim uppercase tracking-[0.15em] mb-3">
+          <h3 className="font-inter text-[11px] font-semibold text-dim uppercase tracking-[0.15em] mb-3">
             FILTER BY NEED TYPE
           </h3>
           <div className="grid grid-cols-2 gap-2">
@@ -109,7 +109,7 @@ export default function LeftSidebar({
                 key={s.key}
                 onClick={() => toggleSituation(s.key)}
                 className={`
-                  px-3 py-2 text-left font-display text-[14px] font-bold uppercase tracking-wide
+                  px-3 py-2 text-left font-inter text-[13px] font-semibold uppercase tracking-wide
                   border-l-[3px] transition-all text-ink
                   ${
                     filters.situations.includes(s.key)
@@ -125,7 +125,7 @@ export default function LeftSidebar({
         </section>
 
         <section>
-          <h3 className="font-mono text-[11px] font-semibold text-dim uppercase tracking-[0.15em] mb-3">
+          <h3 className="font-inter text-[11px] font-semibold text-dim uppercase tracking-[0.15em] mb-3">
             URGENCY LEVEL
           </h3>
           <div className="space-y-2">
@@ -134,7 +134,7 @@ export default function LeftSidebar({
                 key={u}
                 onClick={() => toggleUrgency(u)}
                 className={`
-                  w-full flex items-center gap-2 px-2 py-2 font-display text-[14px] font-bold uppercase
+                  w-full flex items-center gap-2 px-2 py-2 font-inter text-[13px] font-semibold uppercase
                   transition-all
                   ${
                     filters.urgencies.includes(u)
@@ -167,7 +167,7 @@ export default function LeftSidebar({
             <select
               value={filters.district}
               onChange={(e) => onFiltersChange({ ...filters, district: e.target.value })}
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-sm font-body text-[14px] font-medium text-ink focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
+              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-sm font-inter text-[14px] font-medium text-ink focus:outline-none focus:ring-2 focus:ring-orange/20 focus:border-orange transition-colors"
             >
               <option value="">All Districts</option>
               {districts.map((d) => (
@@ -180,7 +180,7 @@ export default function LeftSidebar({
         )}
 
         <section>
-          <h3 className="font-mono text-[11px] font-semibold text-dim uppercase tracking-[0.15em] mb-3">
+          <h3 className="font-inter text-[11px] font-semibold text-dim uppercase tracking-[0.15em] mb-3">
             MAP LAYERS
           </h3>
           <div className="space-y-2">
@@ -212,7 +212,7 @@ export default function LeftSidebar({
                     `}
                   />
                 </button>
-                <span className={`font-display text-[13px] font-semibold uppercase tracking-wide transition-colors ${layers[layer.key] ? "text-ink" : "text-dim group-hover:text-muted"}`}>
+                <span className={`font-inter text-[12px] font-medium uppercase tracking-wide transition-colors ${layers[layer.key] ? "text-ink" : "text-dim group-hover:text-muted"}`}>
                   {layer.label}
                 </span>
               </label>
@@ -221,7 +221,7 @@ export default function LeftSidebar({
         </section>
 
         <section>
-          <h3 className="font-mono text-[11px] font-semibold text-dim uppercase tracking-[0.15em] mb-3">
+          <h3 className="font-inter text-[11px] font-semibold text-dim uppercase tracking-[0.15em] mb-3">
             RESOURCE SUMMARY
           </h3>
           <div className="space-y-4">
@@ -233,11 +233,11 @@ export default function LeftSidebar({
               return (
                 <div key={r.id}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-display text-[14px] font-bold uppercase text-ink">
+                    <span className="font-inter text-[14px] font-semibold text-ink">
                       {r.name}
                     </span>
                     {isLow && (
-                      <span className="font-mono text-[10px] font-bold text-red-600 uppercase tracking-wider px-2 py-1 bg-red-50 rounded-sm">
+                      <span className="font-ibm-mono text-[10px] font-semibold text-red-600 uppercase tracking-wider px-2 py-1 bg-red-50 rounded-sm">
                         LOW
                       </span>
                     )}
@@ -251,12 +251,12 @@ export default function LeftSidebar({
                         onBlur={() => handleEditSave(r.id)}
                         onKeyDown={(e) => e.key === "Enter" && handleEditSave(r.id)}
                         autoFocus
-                        className="w-16 px-2 py-0.5 bg-white border border-orange rounded-sm font-mono text-[12px] text-ink focus:outline-none focus:ring-2 focus:ring-orange/20"
+                        className="w-16 px-2 py-0.5 bg-white border border-orange rounded-sm font-ibm-mono text-[12px] text-ink focus:outline-none focus:ring-2 focus:ring-orange/20"
                       />
                     ) : (
                       <button
                         onClick={() => handleEditStart(r)}
-                        className="font-mono text-[13px] font-semibold text-ink hover:text-orange transition-colors"
+                        className="font-ibm-mono text-[13px] font-medium text-ink hover:text-orange transition-colors"
                       >
                         {r.quantity} / {r.low_stock_threshold * 2} {r.unit}
                       </button>

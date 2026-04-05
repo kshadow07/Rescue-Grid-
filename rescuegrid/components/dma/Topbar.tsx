@@ -130,10 +130,10 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex items-center h-[52px] px-4 bg-white border-b border-border-dim gap-4">
       <div className="flex items-center gap-2 shrink-0">
-        <span className="font-display text-[20px] font-bold tracking-[0.08em] text-ink uppercase">
+        <span className="font-inter text-[18px] font-bold tracking-[0.08em] text-ink uppercase">
           RESCUE
         </span>
-        <span className="font-display text-[20px] font-bold tracking-[0.08em] text-orange uppercase">
+        <span className="font-inter text-[18px] font-bold tracking-[0.08em] text-orange uppercase">
           GRID
         </span>
       </div>
@@ -144,7 +144,7 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
             key={tab.href}
             href={tab.href}
             className={`
-              px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.15em] transition-colors relative
+              px-3 py-1 font-inter text-[11px] font-semibold uppercase tracking-[0.1em] transition-colors relative
               ${isActive(tab.href) ? "text-orange" : "text-dim hover:text-ink"}
             `}
           >
@@ -166,7 +166,7 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
       <div className="flex-1" />
 
       <div className="flex items-center gap-5 shrink-0">
-        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em]">
+        <div className="flex items-center gap-2 font-inter text-[11px] uppercase tracking-[0.1em]">
           <span className="text-dim">CRITICAL</span>
           {loading ? (
             <div className="w-4 h-4 bg-red-100 animate-pulse rounded-sm" />
@@ -174,7 +174,7 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
             <span className="text-[16px] font-bold text-alert animate-critical-pulse">{counters.critical}</span>
           )}
         </div>
-        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em]">
+        <div className="flex items-center gap-2 font-inter text-[11px] uppercase tracking-[0.1em]">
           <span className="text-dim">ACTIVE</span>
           {loading ? (
             <div className="w-4 h-4 bg-orange/20 animate-pulse rounded-sm" />
@@ -182,7 +182,7 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
             <span className="text-[16px] font-bold text-orange">{counters.active}</span>
           )}
         </div>
-        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em]">
+        <div className="flex items-center gap-2 font-inter text-[11px] uppercase tracking-[0.1em]">
           <span className="text-dim">VOLS</span>
           {loading ? (
             <div className="w-4 h-4 bg-gray-100 animate-pulse rounded-sm" />
@@ -194,7 +194,7 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
         <div className="h-4 w-px bg-border-dim mx-1" />
 
         <div className="flex items-center gap-1 px-2 py-1 rounded-sm bg-green-50 border border-green-100">
-          <span className="font-mono text-[13px] text-green-600 tracking-wider">{sessionElapsed}</span>
+          <span className="font-ibm-mono text-[13px] text-green-600 tracking-wider">{sessionElapsed}</span>
         </div>
 
         <div className="h-4 w-px bg-border-dim mx-1" />
@@ -217,7 +217,7 @@ export default function Topbar({ loginTime, aiAssistantOpen, onToggleAI }: Topba
 
         <button
           onClick={handleLogout}
-          className="font-mono text-[10px] text-dim uppercase tracking-[0.1em] hover:text-alert transition-colors ml-2"
+          className="font-inter text-[10px] text-dim uppercase tracking-[0.1em] hover:text-alert transition-colors ml-2"
         >
           LOGOUT
         </button>
