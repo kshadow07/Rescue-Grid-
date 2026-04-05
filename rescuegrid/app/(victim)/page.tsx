@@ -31,27 +31,27 @@ export default function VictimHomePage() {
         <div className="max-w-md mx-auto">
           <div className="text-center mb-6">
             <div className="inline-flex items-center gap-0 mb-2">
-              <span className="font-display text-[32px] font-bold tracking-[0.1em] text-ink">
+              <span className="font-[family-name:var(--font-inter)] text-[32px] font-bold tracking-[0.1em] text-ink">
                 RESCUE
               </span>
-              <span className="font-display text-[32px] font-bold tracking-[0.1em] text-orange">
+              <span className="font-[family-name:var(--font-inter)] text-[32px] font-bold tracking-[0.1em] text-orange">
                 GRID
               </span>
             </div>
-            <p className="font-body text-sm text-muted">
+            <p className="font-[family-name:var(--font-inter)] text-sm text-muted leading-[1.5]">
               Report Emergency / आपातकाल रिपोर्ट करें
             </p>
           </div>
 
           <div className="text-center mb-4">
-            <span className="inline-block bg-alert text-white font-mono text-[10px] uppercase tracking-[0.15em] px-2 py-0.5">
+            <span className="inline-block bg-alert text-white font-[family-name:var(--font-ibm-mono)] text-[10px] uppercase tracking-[0.15em] px-2 py-0.5">
               🚨 SOS - Works Without Internet
             </span>
           </div>
 
           {!isOnline && (
             <div className="mb-4 p-2 bg-surface-2 border border-orange/30 text-center">
-              <p className="font-mono text-[10px] text-orange">
+              <p className="font-[family-name:var(--font-ibm-mono)] text-[10px] text-orange">
                 📡 Offline Mode - Use SOS button below to send emergency SMS
               </p>
             </div>
@@ -62,12 +62,12 @@ export default function VictimHomePage() {
           <div className="mt-6 mb-4">
             <div className="flex items-center gap-2">
               <div className="flex-1 h-px bg-border-dim" />
-              <span className="font-mono text-[10px] text-dim uppercase tracking-wider">or select type</span>
+              <span className="font-[family-name:var(--font-ibm-mono)] text-[10px] text-dim uppercase tracking-wider">or select type</span>
               <div className="flex-1 h-px bg-border-dim" />
             </div>
           </div>
 
-          <p className="text-center font-display text-lg font-semibold text-ink mb-4 tracking-wide">
+          <p className="text-center font-[family-name:var(--font-inter)] text-[15px] font-semibold text-ink mb-4 tracking-wide leading-[1.3]">
             What do you need?
           </p>
 
@@ -89,10 +89,10 @@ export default function VictimHomePage() {
                   }}
                 />
                 <div className="text-3xl mb-2">{situation.icon}</div>
-                <div className="font-display text-[18px] font-bold uppercase tracking-wide text-ink mb-0.5">
+                <div className="font-[family-name:var(--font-inter)] text-[15px] font-semibold uppercase tracking-[0.05em] text-ink mb-0.5">
                   {situation.label}
                 </div>
-                <div className="font-body text-[13px] text-muted">
+                <div className="font-[family-name:var(--font-inter)] text-[13px] text-muted leading-[1.5]">
                   {situation.labelHindi}
                 </div>
               </button>
@@ -102,7 +102,7 @@ export default function VictimHomePage() {
           <div className="mt-6 text-center">
             <button
               onClick={() => router.push("/report/my")}
-              className="font-mono text-[11px] text-muted uppercase tracking-[0.1em] hover:text-orange transition-colors"
+              className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-muted uppercase tracking-[0.1em] hover:text-orange transition-colors"
             >
               📋 My Reports / मेरी रिपोर्ट
             </button>
@@ -112,13 +112,13 @@ export default function VictimHomePage() {
 
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-void border-t border-border-dim">
         <a
-          href="tel:1070"
-          className="block w-full text-center font-display font-semibold text-[13px] uppercase tracking-[0.15em] text-black bg-orange py-3 px-6 transition-opacity hover:opacity-90 active:scale-[0.98]"
+          href={`tel:${process.env.NEXT_PUBLIC_TWILIO_SMS_NUMBER}`}
+          className="block w-full text-center font-[family-name:var(--font-ibm-mono)] font-medium text-[13px] uppercase tracking-[0.15em] text-black bg-orange py-3 px-6 transition-opacity hover:opacity-90 active:scale-[0.98]"
           style={{
             clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))",
           }}
         >
-          📞 Helpline: 1070
+          📞 Helpline: {process.env.NEXT_PUBLIC_TWILIO_SMS_NUMBER}
         </a>
       </div>
     </div>

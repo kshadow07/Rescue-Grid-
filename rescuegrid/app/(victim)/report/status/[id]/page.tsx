@@ -265,13 +265,13 @@ export default function ReportStatusPage() {
   const footerArea = (
     <div className="px-4 py-3 border-t border-border-dim bg-surface-1">
       <a
-        href="tel:1070"
-        className="block w-full text-center font-display font-semibold text-[13px] uppercase tracking-[0.15em] text-black bg-orange py-3 transition-opacity hover:opacity-90"
+        href={`tel:${process.env.NEXT_PUBLIC_TWILIO_SMS_NUMBER}`}
+        className="block w-full text-center font-[family-name:var(--font-ibm-mono)] font-medium text-[13px] uppercase tracking-[0.15em] text-black bg-orange py-3 transition-opacity hover:opacity-90"
         style={{
           clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))",
         }}
       >
-        📞 Call Helpline: 1070
+        📞 Call Helpline: {process.env.NEXT_PUBLIC_TWILIO_SMS_NUMBER}
       </a>
     </div>
   );
