@@ -185,7 +185,7 @@ export default function BroadcastPage() {
               key={tab.href}
               href={tab.href}
               className={`
-                px-3 py-1 font-mono text-[11px] uppercase tracking-[0.15em] transition-colors relative
+                px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.15em] transition-colors relative
                 ${isActive(tab.href) ? "text-orange" : "text-gray-400 hover:text-gray-700"}
               `}
             >
@@ -196,6 +196,13 @@ export default function BroadcastPage() {
             </Link>
           ))}
         </nav>
+
+        <div className="h-4 w-px bg-gray-200 mx-1" />
+
+        <AIAssistantButton
+          isOpen={aiDrawerOpen}
+          onClick={toggleAI}
+        />
 
         <div className="flex-1" />
 
